@@ -1,0 +1,168 @@
+{
+  "users": [],
+  "gameSessions": [
+    {
+      "sessionId": "sess_1791658846162_qr2pxc",
+      "userId": "guest_1791658846161",
+      "levelId": 1,
+      "sessionToken": "fedaf487857d7c86c49c0b4c6cef222ea93f7dffb656cb85",
+      "startedAt": 1791658846162,
+      "completedAt": null,
+      "shotsUsed": 0,
+      "bubblesPopped": 0,
+      "score": 0,
+      "stars": 0,
+      "bestCombo": 0,
+      "boostersUsed": [],
+      "completed": false,
+      "status": "active"
+    },
+    {
+      "sessionId": "sess_1791659750077_ci8huc",
+      "userId": "guest_1791659750076",
+      "levelId": 1,
+      "sessionToken": "e538bf16f1b00c219211018ee6a348b7d86f08812389e4a7",
+      "startedAt": 1791659750077,
+      "completedAt": null,
+      "shotsUsed": 0,
+      "bubblesPopped": 0,
+      "score": 0,
+      "stars": 0,
+      "bestCombo": 0,
+      "boostersUsed": [],
+      "completed": false,
+      "status": "active"
+    },
+    {
+      "sessionId": "sess_1791659775020_y4il6z",
+      "userId": "guest_1791659775020",
+      "levelId": 2,
+      "sessionToken": "f3c28d23dd7d134e64e36031e5732dcaa4e1183bbfb183ea",
+      "startedAt": 1791659775020,
+      "completedAt": null,
+      "shotsUsed": 0,
+      "bubblesPopped": 0,
+      "score": 0,
+      "stars": 0,
+      "bestCombo": 0,
+      "boostersUsed": [],
+      "completed": false,
+      "status": "active"
+    }
+  ],
+  "achievements": [
+    {
+      "id": "first_pop",
+      "title": "First Pop",
+      "description": "Pop your very first bubble cluster!",
+      "icon": "🎯",
+      "points": 50,
+      "requirement": {
+        "type": "bubbles_popped",
+        "count": 1
+      }
+    },
+    {
+      "id": "bubble_beginner",
+      "title": "Bubble Beginner",
+      "description": "Complete 5 levels successfully.",
+      "icon": "🌟",
+      "points": 100,
+      "requirement": {
+        "type": "levels_completed",
+        "count": 5
+      }
+    },
+    {
+      "id": "perfect_aim",
+      "title": "Perfect Aim",
+      "description": "Complete a level using under 8 shots.",
+      "icon": "🏹",
+      "points": 150,
+      "requirement": {
+        "type": "shot_efficiency",
+        "maxShots": 8
+      }
+    },
+    {
+      "id": "combo_master",
+      "title": "Combo Master",
+      "description": "Reach a streak of x5 Combo!",
+      "icon": "🔥",
+      "points": 200,
+      "requirement": {
+        "type": "best_combo",
+        "count": 5
+      }
+    },
+    {
+      "id": "bubble_hunter",
+      "title": "Bubble Hunter",
+      "description": "Pop a total of 500 bubbles.",
+      "icon": "⚡",
+      "points": 250,
+      "requirement": {
+        "type": "bubbles_popped",
+        "count": 500
+      }
+    },
+    {
+      "id": "rescue_hero",
+      "title": "Rescue Hero",
+      "description": "Rescue 10 trapped Star Critters.",
+      "icon": "🐣",
+      "points": 300,
+      "requirement": {
+        "type": "rescued_objects",
+        "count": 10
+      }
+    },
+    {
+      "id": "star_collector",
+      "title": "Star Collector",
+      "description": "Earn 30 total stars across levels.",
+      "icon": "⭐",
+      "points": 350,
+      "requirement": {
+        "type": "total_stars",
+        "count": 30
+      }
+    },
+    {
+      "id": "booster_expert",
+      "title": "Booster Expert",
+      "description": "Use 10 boosters in tactical gameplay.",
+      "icon": "🧨",
+      "points": 200,
+      "requirement": {
+        "type": "boosters_used",
+        "count": 10
+      }
+    },
+    {
+      "id": "level_master",
+      "title": "Level Master",
+      "description": "Complete 40 levels of adventure.",
+      "icon": "👑",
+      "points": 1000,
+      "requirement": {
+        "type": "levels_completed",
+        "count": 40
+      }
+    },
+    {
+      "id": "bubble_legend",
+      "title": "Bubble Legend",
+      "description": "Reach 50,000 career points.",
+      "icon": "🏆",
+      "points": 1500,
+      "requirement": {
+        "type": "total_score",
+        "count": 50000
+      }
+    }
+  ],
+  "userAchievements": [],
+  "dailyChallenges": [],
+  "customLevels": []
+}
