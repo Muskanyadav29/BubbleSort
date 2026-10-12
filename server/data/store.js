@@ -5,7 +5,8 @@ import { getAllLevelsMetadata, getLevelConfig } from './levelsData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DB_FILE = path.join(__dirname, 'db.json');
+const STATIC_DB_FILE = path.join(__dirname, 'db.json');
+const DB_FILE = process.env.VERCEL ? path.join('/tmp', 'db.json') : STATIC_DB_FILE;
 
 const INITIAL_ACHIEVEMENTS = [
   { id: 'first_pop', title: 'First Pop', description: 'Pop your very first bubble cluster!', icon: '🎯', points: 50, requirement: { type: 'bubbles_popped', count: 1 } },
@@ -35,17 +36,17 @@ class MemoryStore {
 
   load() {
     try {
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const sourceFile = fs.existsSync(DB_FILE) ? DB_FILE : STATIC_DB_FILE;
+      if (fs.existsSync(sourceFile)) {
+        const raw = fs.readFileSync(sourceFile, 'utf-8');
         const parsed = JSON.parse(raw);
         this.data = {
           ...this.data,
           ...parsed,
           achievements: INITIAL_ACHIEVEMENTS // always ensure up-to-date
         };
-      } else {
-        this.save();
       }
+      this.save();
     } catch (err) {
       console.warn('Using fresh database state:', err.message);
     }
