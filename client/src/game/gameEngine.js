@@ -29,6 +29,22 @@ export const GAME_STATES = {
   PAUSED: 'PAUSED'
 };
 
+function hexToRgba(hex, alpha = 1) {
+  if (!hex || typeof hex !== 'string') return `rgba(255, 255, 255, ${alpha})`;
+  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+  const clean = hex.replace('#', '');
+  if (clean.length === 3) {
+    const r = parseInt(clean[0] + clean[0], 16);
+    const g = parseInt(clean[1] + clean[1], 16);
+    const b = parseInt(clean[2] + clean[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  const r = parseInt(clean.substring(0, 2), 16) || 255;
+  const g = parseInt(clean.substring(2, 4), 16) || 255;
+  const b = parseInt(clean.substring(4, 6), 16) || 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export class GameEngine {
   constructor(canvas, onStateChange) {
     this.canvas = canvas;
@@ -649,26 +665,60 @@ export class GameEngine {
       }
     }
 
-    // 4. Trajectory Guide (Golden beads & light beam as per reference screenshot)
+    // 4. Trajectory Guide (Color-matched directional beam & glowing 3D beads as per reference screenshot)
     if (this.state === GAME_STATES.READY || this.state === GAME_STATES.AIMING) {
       const { polyline, bounces, collisionPoint, targetCell } = this.calculateTrajectory();
+      const activeColor = this.shotManager.currentBubble;
+      const activeTheme = BUBBLE_THEMES[activeColor] || BUBBLE_THEMES.red;
 
-      // (A) Golden directional light cone emitting from the active bubble
+      // (A) Directional arrow beam matching the active bubble color
       ctx.save();
       ctx.translate(this.launcherPos.x, this.launcherPos.y);
       ctx.rotate(this.aimAngle);
-      const coneGrad = ctx.createLinearGradient(14, 0, 80, 0);
-      coneGrad.addColorStop(0, 'rgba(254, 240, 138, 0.5)');
-      coneGrad.addColorStop(0.35, 'rgba(250, 204, 21, 0.25)');
-      coneGrad.addColorStop(1, 'rgba(250, 204, 21, 0)');
+
+      // Tapered luminous arrow beam
+      const beamGrad = ctx.createLinearGradient(16, 0, 95, 0);
+      beamGrad.addColorStop(0, hexToRgba(activeTheme.light, 0.8));
+      beamGrad.addColorStop(0.3, hexToRgba(activeTheme.main, 0.45));
+      beamGrad.addColorStop(0.75, hexToRgba(activeTheme.main, 0.15));
+      beamGrad.addColorStop(1, hexToRgba(activeTheme.main, 0));
+
       ctx.beginPath();
-      ctx.moveTo(16, -7);
-      ctx.lineTo(80, -25);
-      ctx.lineTo(80, 25);
-      ctx.lineTo(16, 7);
+      ctx.moveTo(16, -8);
+      ctx.lineTo(82, -26);
+      ctx.lineTo(95, 0);
+      ctx.lineTo(82, 26);
+      ctx.lineTo(16, 8);
       ctx.closePath();
-      ctx.fillStyle = coneGrad;
+      ctx.fillStyle = beamGrad;
       ctx.fill();
+
+      // Bright inner core arrow line
+      const coreGrad = ctx.createLinearGradient(18, 0, 80, 0);
+      coreGrad.addColorStop(0, '#ffffff');
+      coreGrad.addColorStop(0.4, hexToRgba(activeTheme.light, 0.9));
+      coreGrad.addColorStop(1, hexToRgba(activeTheme.main, 0));
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.lineTo(80, 0);
+      ctx.strokeStyle = coreGrad;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Energy sparkle dots inside the beam
+      [
+        { x: 38, y: -5, r: 2.0 },
+        { x: 52, y: 7, r: 2.4 },
+        { x: 68, y: -4, r: 1.8 },
+        { x: 74, y: 6, r: 1.6 }
+      ].forEach(sp => {
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(activeTheme.light, 0.75);
+        ctx.fill();
+      });
+
       ctx.restore();
 
       // (B) Polyline segments calculation for parametric bead placement
@@ -682,9 +732,9 @@ export class GameEngine {
         totalLength += len;
       }
 
-      // (C) Golden beaded dots along the trajectory path
+      // (C) Spherical beaded dots along the trajectory path (matching active bubble color)
       const startDist = 26; // Starts cleanly outside the loaded bubble
-      const spacing = 18;   // Spacing matching the reference screenshot
+      const spacing = 18;   // Spacing matching reference image
       const maxDrawDist = Math.max(0, totalLength - 14);
 
       for (let d = startDist; d <= maxDrawDist; d += spacing) {
@@ -695,32 +745,32 @@ export class GameEngine {
         const dotX = seg.p1.x + t * (seg.p2.x - seg.p1.x);
         const dotY = seg.p1.y + t * (seg.p2.y - seg.p1.y);
 
-        // Draw shining golden bead / pearl
+        // Draw shining 3D sphere bead matching active bubble theme
         ctx.save();
-        ctx.shadowColor = 'rgba(251, 191, 36, 0.85)';
-        ctx.shadowBlur = this.boostersActive.aimGuide ? 10 : 5;
+        ctx.shadowColor = activeTheme.glow || activeTheme.main;
+        ctx.shadowBlur = this.boostersActive.aimGuide ? 10 : 6;
         const beadRadius = this.boostersActive.aimGuide ? 4.8 : 4.0;
 
         const beadGrad = ctx.createRadialGradient(
           dotX - beadRadius * 0.35,
           dotY - beadRadius * 0.35,
-          0.3,
+          0.2,
           dotX,
           dotY,
           beadRadius
         );
         beadGrad.addColorStop(0, '#ffffff');
-        beadGrad.addColorStop(0.3, '#fef08a');
-        beadGrad.addColorStop(0.75, '#f59e0b');
-        beadGrad.addColorStop(1, '#b45309');
+        beadGrad.addColorStop(0.28, activeTheme.light || '#ffffff');
+        beadGrad.addColorStop(0.72, activeTheme.main || '#ff0000');
+        beadGrad.addColorStop(1, activeTheme.dark || '#990000');
 
         ctx.beginPath();
         ctx.arc(dotX, dotY, beadRadius, 0, Math.PI * 2);
         ctx.fillStyle = beadGrad;
         ctx.fill();
 
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 0.75;
+        ctx.strokeStyle = activeTheme.rim || activeTheme.dark || '#550000';
+        ctx.lineWidth = 0.8;
         ctx.stroke();
         ctx.restore();
       }
@@ -730,9 +780,9 @@ export class GameEngine {
         ctx.save();
         ctx.beginPath();
         ctx.arc(b.x, b.y, 6.5, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(254, 240, 138, 0.75)';
-        ctx.lineWidth = 1.6;
-        ctx.shadowColor = 'rgba(245, 158, 11, 0.8)';
+        ctx.strokeStyle = hexToRgba(activeTheme.light, 0.85);
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = activeTheme.main;
         ctx.shadowBlur = 6;
         ctx.stroke();
         ctx.restore();
@@ -742,52 +792,50 @@ export class GameEngine {
       const ghostPos = targetCell ? { x: targetCell.x, y: targetCell.y } : collisionPoint;
       if (ghostPos) {
         ctx.save();
-        const activeColor = this.shotManager.currentBubble;
-        const activeTheme = BUBBLE_THEMES[activeColor] || BUBBLE_THEMES.blue;
 
-        // Faint tinted bubble volume
+        // Translucent tinted bubble volume
         ctx.beginPath();
         ctx.arc(ghostPos.x, ghostPos.y, BUBBLE_RADIUS - 1, 0, Math.PI * 2);
-        ctx.fillStyle = activeTheme.main || '#38bdf8';
-        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = hexToRgba(activeTheme.main, 0.22);
         ctx.fill();
 
         // Glowing translucent glass ring
-        ctx.globalAlpha = 0.82;
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
-        ctx.lineWidth = 2.2;
-        ctx.shadowColor = activeTheme.light || '#ffffff';
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = activeTheme.main;
         ctx.shadowBlur = 8;
         ctx.stroke();
 
         // Curved glassy highlight reflection arc
         ctx.beginPath();
         ctx.arc(ghostPos.x, ghostPos.y, BUBBLE_RADIUS - 4, -Math.PI * 0.88, -Math.PI * 0.22);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.lineWidth = 2.2;
         ctx.lineCap = 'round';
         ctx.stroke();
 
-        // Final golden center bead inside ghost bubble
-        ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
-        ctx.shadowBlur = 7;
-        const beadGrad = ctx.createRadialGradient(
+        // Final center bead inside ghost bubble matching active bubble color
+        const centerBeadGrad = ctx.createRadialGradient(
           ghostPos.x - 1.2,
           ghostPos.y - 1.2,
-          0.3,
+          0.2,
           ghostPos.x,
           ghostPos.y,
           4.2
         );
-        beadGrad.addColorStop(0, '#ffffff');
-        beadGrad.addColorStop(0.3, '#fef08a');
-        beadGrad.addColorStop(0.75, '#f59e0b');
-        beadGrad.addColorStop(1, '#b45309');
+        centerBeadGrad.addColorStop(0, '#ffffff');
+        centerBeadGrad.addColorStop(0.28, activeTheme.light || '#ffffff');
+        centerBeadGrad.addColorStop(0.72, activeTheme.main || '#ff0000');
+        centerBeadGrad.addColorStop(1, activeTheme.dark || '#990000');
 
         ctx.beginPath();
         ctx.arc(ghostPos.x, ghostPos.y, 4.2, 0, Math.PI * 2);
-        ctx.fillStyle = beadGrad;
+        ctx.fillStyle = centerBeadGrad;
         ctx.fill();
+
+        ctx.strokeStyle = activeTheme.rim || activeTheme.dark;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
 
         ctx.restore();
       }
@@ -1026,12 +1074,14 @@ export class GameEngine {
 
     // 3. Loaded Active Bubble seated at the top of the ring
     if (!this.projectile) {
-      // Golden aura behind active bubble
+      // Color-matching aura behind active bubble
+      const activeColor = this.shotManager.currentBubble;
+      const activeTheme = BUBBLE_THEMES[activeColor] || BUBBLE_THEMES.red;
       ctx.save();
       const aura = ctx.createRadialGradient(lx, ly, 6, lx, ly, 38);
-      aura.addColorStop(0, 'rgba(255, 215, 0, 0.5)');
-      aura.addColorStop(0.5, 'rgba(255, 180, 0, 0.22)');
-      aura.addColorStop(1, 'rgba(255, 215, 0, 0)');
+      aura.addColorStop(0, hexToRgba(activeTheme.light, 0.55));
+      aura.addColorStop(0.5, hexToRgba(activeTheme.main, 0.22));
+      aura.addColorStop(1, hexToRgba(activeTheme.main, 0));
       ctx.beginPath();
       ctx.arc(lx, ly, 38, 0, Math.PI * 2);
       ctx.fillStyle = aura;
