@@ -44,8 +44,8 @@ export class GameEngine {
     this.shotManager = new ShotManager();
     this.objectiveManager = new ObjectiveManager();
 
-    // Launcher positioning
-    this.launcherPos = { x: BOARD_WIDTH / 2, y: BOARD_HEIGHT - 45 };
+    // Launcher positioning (Active bubble center at y = 524, Shots ring at y = 550)
+    this.launcherPos = { x: BOARD_WIDTH / 2, y: 524 };
     this.aimAngle = -Math.PI / 2; // Pointing straight up initially
     this.isAiming = false;
 
@@ -189,10 +189,10 @@ export class GameEngine {
     const consumed = this.shotManager.consumeShot(this.levelConfig.colors);
     if (!consumed) return false;
 
-    // Launch moving projectile
+    // Launch moving projectile directly from the active loaded bubble position
     this.projectile = {
       x: this.launcherPos.x,
-      y: this.launcherPos.y - 10,
+      y: this.launcherPos.y,
       vx: Math.cos(this.aimAngle) * this.speed,
       vy: Math.sin(this.aimAngle) * this.speed,
       color: bubbleColor,
@@ -202,6 +202,16 @@ export class GameEngine {
     soundEngine.playLaunch();
     this.setState(GAME_STATES.SHOOTING);
     return true;
+  }
+
+  isSwapZone(x, y) {
+    const baseX = this.launcherPos.x;
+    const baseY = this.launcherPos.y + 26;
+    // Check next bubble dock (baseX + 28, baseY + 16)
+    if (Math.hypot(x - (baseX + 28), y - (baseY + 16)) <= 28) return true;
+    // Check circular pedestal area (baseX, baseY)
+    if (Math.hypot(x - baseX, y - baseY) <= 32 && y > this.launcherPos.y + 10) return true;
+    return false;
   }
 
   swapBubbles() {
@@ -551,16 +561,22 @@ export class GameEngine {
 
   // Visual Trajectory Guide with wall reflections
   calculateTrajectory() {
-    const path = [{ x: this.launcherPos.x, y: this.launcherPos.y }];
-    let curX = this.launcherPos.x;
-    let curY = this.launcherPos.y;
+    const startX = this.launcherPos.x;
+    const startY = this.launcherPos.y;
+    let curX = startX;
+    let curY = startY;
     let dirX = Math.cos(this.aimAngle);
     let dirY = Math.sin(this.aimAngle);
 
-    const maxSegments = this.boostersActive.aimGuide ? 600 : 380;
-    const step = 8;
+    const bounces = [];
+    let collisionPoint = null;
+    let targetCell = null;
 
-    for (let dist = 0; dist < maxSegments; dist += step) {
+    const step = 4;
+    const maxDistance = 1400; // ample for reaching the top after bouncing
+    const polyline = [{ x: curX, y: curY }];
+
+    for (let dist = 0; dist < maxDistance; dist += step) {
       curX += dirX * step;
       curY += dirY * step;
 
@@ -568,34 +584,60 @@ export class GameEngine {
       if (curX - BUBBLE_RADIUS <= 0) {
         curX = BUBBLE_RADIUS;
         dirX = -dirX;
+        bounces.push({ x: curX, y: curY });
+        polyline.push({ x: curX, y: curY });
       } else if (curX + BUBBLE_RADIUS >= BOARD_WIDTH) {
         curX = BOARD_WIDTH - BUBBLE_RADIUS;
         dirX = -dirX;
+        bounces.push({ x: curX, y: curY });
+        polyline.push({ x: curX, y: curY });
       }
 
-      path.push({ x: curX, y: curY });
-
       // Stop if hitting ceiling or board bubbles
-      if (curY - BUBBLE_RADIUS <= CEILING_Y || checkBubbleCollision(curX, curY, this.board).collided) {
+      const col = checkBubbleCollision(curX, curY, this.board);
+      const ceilingHit = (curY - BUBBLE_RADIUS <= CEILING_Y);
+
+      if (ceilingHit || col.collided) {
+        collisionPoint = { x: curX, y: curY };
+        targetCell = findNearestGridCell(curX, curY, this.board);
+        polyline.push({ x: curX, y: curY });
         break;
       }
     }
 
-    return path;
+    if (!collisionPoint && polyline.length > 0) {
+      collisionPoint = polyline[polyline.length - 1];
+    }
+
+    return { polyline, bounces, collisionPoint, targetCell };
   }
 
   // --- RENDERING ---
   render() {
     const ctx = this.ctx;
-    ctx.clearRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+    
+    // 1. Deep arcade game backdrop
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, BOARD_HEIGHT);
+    bgGrad.addColorStop(0, '#080d1a');
+    bgGrad.addColorStop(0.5, '#0f172a');
+    bgGrad.addColorStop(1, '#060913');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
 
-    // Ceiling bar
-    ctx.fillStyle = '#2C3E50';
+    // 2. Ceiling bar (Arcade stone/golden trim)
+    const ceilingGrad = ctx.createLinearGradient(0, 0, 0, CEILING_Y);
+    ceilingGrad.addColorStop(0, '#1e293b');
+    ceilingGrad.addColorStop(0.7, '#334155');
+    ceilingGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = ceilingGrad;
     ctx.fillRect(0, 0, BOARD_WIDTH, CEILING_Y - 4);
-    ctx.fillStyle = '#485460';
-    ctx.fillRect(0, CEILING_Y - 4, BOARD_WIDTH, 4);
 
-    // Board Bubbles
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(0, CEILING_Y - 4, BOARD_WIDTH, 3);
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, CEILING_Y - 1, BOARD_WIDTH, 1);
+
+    // 3. Board Bubbles
     for (let r = 0; r < this.board.length; r++) {
       const cols = getColsInRow(r);
       for (let c = 0; c < cols; c++) {
@@ -607,33 +649,151 @@ export class GameEngine {
       }
     }
 
-    // Trajectory Guide (Items 13, 14, 48)
+    // 4. Trajectory Guide (Golden beads & light beam as per reference screenshot)
     if (this.state === GAME_STATES.READY || this.state === GAME_STATES.AIMING) {
-      const trajectory = this.calculateTrajectory();
+      const { polyline, bounces, collisionPoint, targetCell } = this.calculateTrajectory();
+
+      // (A) Golden directional light cone emitting from the active bubble
+      ctx.save();
+      ctx.translate(this.launcherPos.x, this.launcherPos.y);
+      ctx.rotate(this.aimAngle);
+      const coneGrad = ctx.createLinearGradient(14, 0, 80, 0);
+      coneGrad.addColorStop(0, 'rgba(254, 240, 138, 0.5)');
+      coneGrad.addColorStop(0.35, 'rgba(250, 204, 21, 0.25)');
+      coneGrad.addColorStop(1, 'rgba(250, 204, 21, 0)');
       ctx.beginPath();
-      ctx.setLineDash([6, 8]);
-      ctx.strokeStyle = this.boostersActive.aimGuide ? 'rgba(255, 234, 167, 0.9)' : 'rgba(255, 255, 255, 0.45)';
-      ctx.lineWidth = this.boostersActive.aimGuide ? 3.5 : 2.5;
+      ctx.moveTo(16, -7);
+      ctx.lineTo(80, -25);
+      ctx.lineTo(80, 25);
+      ctx.lineTo(16, 7);
+      ctx.closePath();
+      ctx.fillStyle = coneGrad;
+      ctx.fill();
+      ctx.restore();
 
-      for (let i = 0; i < trajectory.length; i++) {
-        if (i === 0) ctx.moveTo(trajectory[i].x, trajectory[i].y);
-        else ctx.lineTo(trajectory[i].x, trajectory[i].y);
+      // (B) Polyline segments calculation for parametric bead placement
+      const segments = [];
+      let totalLength = 0;
+      for (let i = 0; i < polyline.length - 1; i++) {
+        const p1 = polyline[i];
+        const p2 = polyline[i + 1];
+        const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        segments.push({ p1, p2, len, startDist: totalLength, endDist: totalLength + len });
+        totalLength += len;
       }
-      ctx.stroke();
-      ctx.setLineDash([]);
 
-      // Collision target indicator circle
-      if (trajectory.length > 0) {
-        const end = trajectory[trajectory.length - 1];
+      // (C) Golden beaded dots along the trajectory path
+      const startDist = 26; // Starts cleanly outside the loaded bubble
+      const spacing = 18;   // Spacing matching the reference screenshot
+      const maxDrawDist = Math.max(0, totalLength - 14);
+
+      for (let d = startDist; d <= maxDrawDist; d += spacing) {
+        const seg = segments.find(s => d >= s.startDist && d <= s.endDist);
+        if (!seg || seg.len === 0) continue;
+
+        const t = (d - seg.startDist) / seg.len;
+        const dotX = seg.p1.x + t * (seg.p2.x - seg.p1.x);
+        const dotY = seg.p1.y + t * (seg.p2.y - seg.p1.y);
+
+        // Draw shining golden bead / pearl
+        ctx.save();
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.85)';
+        ctx.shadowBlur = this.boostersActive.aimGuide ? 10 : 5;
+        const beadRadius = this.boostersActive.aimGuide ? 4.8 : 4.0;
+
+        const beadGrad = ctx.createRadialGradient(
+          dotX - beadRadius * 0.35,
+          dotY - beadRadius * 0.35,
+          0.3,
+          dotX,
+          dotY,
+          beadRadius
+        );
+        beadGrad.addColorStop(0, '#ffffff');
+        beadGrad.addColorStop(0.3, '#fef08a');
+        beadGrad.addColorStop(0.75, '#f59e0b');
+        beadGrad.addColorStop(1, '#b45309');
+
         ctx.beginPath();
-        ctx.arc(end.x, end.y, BUBBLE_RADIUS * 0.75, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.lineWidth = 2;
+        ctx.arc(dotX, dotY, beadRadius, 0, Math.PI * 2);
+        ctx.fillStyle = beadGrad;
+        ctx.fill();
+
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 0.75;
         ctx.stroke();
+        ctx.restore();
+      }
+
+      // (D) Wall bounce glow rings
+      for (const b of bounces) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 6.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(254, 240, 138, 0.75)';
+        ctx.lineWidth = 1.6;
+        ctx.shadowColor = 'rgba(245, 158, 11, 0.8)';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // (E) Target ghost bubble preview at landing grid cell
+      const ghostPos = targetCell ? { x: targetCell.x, y: targetCell.y } : collisionPoint;
+      if (ghostPos) {
+        ctx.save();
+        const activeColor = this.shotManager.currentBubble;
+        const activeTheme = BUBBLE_THEMES[activeColor] || BUBBLE_THEMES.blue;
+
+        // Faint tinted bubble volume
+        ctx.beginPath();
+        ctx.arc(ghostPos.x, ghostPos.y, BUBBLE_RADIUS - 1, 0, Math.PI * 2);
+        ctx.fillStyle = activeTheme.main || '#38bdf8';
+        ctx.globalAlpha = 0.16;
+        ctx.fill();
+
+        // Glowing translucent glass ring
+        ctx.globalAlpha = 0.82;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = activeTheme.light || '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+
+        // Curved glassy highlight reflection arc
+        ctx.beginPath();
+        ctx.arc(ghostPos.x, ghostPos.y, BUBBLE_RADIUS - 4, -Math.PI * 0.88, -Math.PI * 0.22);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Final golden center bead inside ghost bubble
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
+        ctx.shadowBlur = 7;
+        const beadGrad = ctx.createRadialGradient(
+          ghostPos.x - 1.2,
+          ghostPos.y - 1.2,
+          0.3,
+          ghostPos.x,
+          ghostPos.y,
+          4.2
+        );
+        beadGrad.addColorStop(0, '#ffffff');
+        beadGrad.addColorStop(0.3, '#fef08a');
+        beadGrad.addColorStop(0.75, '#f59e0b');
+        beadGrad.addColorStop(1, '#b45309');
+
+        ctx.beginPath();
+        ctx.arc(ghostPos.x, ghostPos.y, 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = beadGrad;
+        ctx.fill();
+
+        ctx.restore();
       }
     }
 
-    // Floating Drops
+    // 5. Floating Drops
     for (const drop of this.floatingDrops) {
       ctx.save();
       ctx.globalAlpha = drop.opacity;
@@ -643,15 +803,15 @@ export class GameEngine {
       ctx.restore();
     }
 
-    // Moving Projectile
+    // 6. Moving Projectile
     if (this.projectile) {
       this.drawBubble(ctx, this.projectile.x, this.projectile.y, this.projectile.color, 'normal');
     }
 
-    // Launcher Cannon & Base
+    // 7. Launcher Cannon & Base
     this.drawLauncher(ctx);
 
-    // Particles
+    // 8. Particles
     for (const p of this.particles) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -659,7 +819,7 @@ export class GameEngine {
       ctx.fill();
     }
 
-    // Floating Pop Texts
+    // 9. Floating Pop Texts
     for (const ft of this.floatingTexts) {
       ctx.save();
       ctx.globalAlpha = ft.opacity;
@@ -673,112 +833,415 @@ export class GameEngine {
     }
   }
 
-  drawBubble(ctx, x, y, colorKey, type = 'normal') {
+  drawBubble(ctx, x, y, colorKey, type = 'normal', customRadius = BUBBLE_RADIUS) {
     const theme = BUBBLE_THEMES[colorKey] || BUBBLE_THEMES.blue;
-    const r = BUBBLE_RADIUS;
+    const r = customRadius || BUBBLE_RADIUS;
 
     ctx.save();
 
-    // Subtle outer shadow
-    ctx.shadowColor = theme.glow;
-    ctx.shadowBlur = 8;
-
-    // Base circle gradient
-    const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+    // 1. Base 3D Sphere with smooth radial gradient (highlight offset towards top-left)
+    const grad = ctx.createRadialGradient(
+      x - r * 0.3,
+      y - r * 0.35,
+      r * 0.1,
+      x,
+      y,
+      r
+    );
     grad.addColorStop(0, theme.light);
-    grad.addColorStop(0.7, theme.main);
-    grad.addColorStop(1, '#0f172a');
+    grad.addColorStop(0.35, theme.main);
+    grad.addColorStop(0.82, theme.dark || theme.main);
+    grad.addColorStop(1.0, theme.rim || theme.dark);
 
     ctx.beginPath();
-    ctx.arc(x, y, r - 1, 0, Math.PI * 2);
+    ctx.arc(x, y, r - 0.5, 0, Math.PI * 2);
     ctx.fillStyle = grad;
     ctx.fill();
-    ctx.shadowBlur = 0;
 
-    // Specular highlight gleam
+    // 2. Defined, crisp outer edge contour
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = theme.rim || theme.dark;
+    ctx.stroke();
+
+    // 3. Subtle bottom-right inner bounce light (translucent glass/marble volume)
     ctx.beginPath();
-    ctx.ellipse(x - r * 0.3, y - r * 0.35, r * 0.35, r * 0.2, -Math.PI / 4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.arc(x, y, r - 2.5, 0.22 * Math.PI, 0.82 * Math.PI);
+    ctx.strokeStyle = theme.innerRim || 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 4. Primary glossy specular highlight reflection at top-left
+    ctx.beginPath();
+    ctx.ellipse(
+      x - r * 0.28,
+      y - r * 0.32,
+      r * 0.36,
+      r * 0.18,
+      -Math.PI / 4,
+      0,
+      Math.PI * 2
+    );
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
     ctx.fill();
 
-    // Special icons/emojis for unique types
+    // 5. Secondary micro specular shine dot
+    ctx.beginPath();
+    ctx.arc(x - r * 0.08, y - r * 0.45, r * 0.09, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fill();
+
+    // Special items
     if (type === 'bomb' || colorKey === 'bomb') {
-      ctx.font = '16px sans-serif';
+      ctx.font = `bold ${Math.round(r * 0.75)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('💣', x, y);
+      ctx.fillText('💣', x, y + 1);
     } else if (type === 'rainbow' || colorKey === 'rainbow') {
-      ctx.font = '16px sans-serif';
+      ctx.font = `bold ${Math.round(r * 0.75)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🌈', x, y);
+      ctx.fillText('⭐', x, y + 1);
     } else if (type === 'lightning' || colorKey === 'lightning') {
-      ctx.font = '16px sans-serif';
+      ctx.font = `bold ${Math.round(r * 0.75)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('⚡', x, y);
-    } else if (type === 'rescue') {
-      ctx.font = '18px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🐣', x, y);
+      ctx.fillText('⚡', x, y + 1);
+    } else if (type === 'rescue' || colorKey === 'rescue') {
+      this.drawBabyDragonInside(ctx, x, y, r);
     }
 
     ctx.restore();
   }
 
-  drawLauncher(ctx) {
-    const { x, y } = this.launcherPos;
-
+  drawBabyDragonInside(ctx, x, y, r) {
     ctx.save();
-
-    // Launcher base pedestal
+    // Cute little baby dragon face peeking out (Dragon Pop mechanic)
+    const cy = y + 2;
+    // Dragon face head
     ctx.beginPath();
-    ctx.arc(x, y + 15, 34, Math.PI, 0, false);
-    ctx.fillStyle = '#1e293b';
+    ctx.arc(x, cy, r * 0.52, 0, Math.PI * 2);
+    ctx.fillStyle = '#fef08a';
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = '#ca8a04';
     ctx.stroke();
 
-    // Aiming barrel rotation
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(this.aimAngle + Math.PI / 2);
-
-    // Barrel body
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
+    // Tiny cute horns
     ctx.beginPath();
-    ctx.roundRect(-14, -42, 28, 40, [8, 8, 2, 2]);
+    ctx.moveTo(x - 5, cy - 7);
+    ctx.lineTo(x - 8, cy - 13);
+    ctx.lineTo(x - 3, cy - 9);
+    ctx.fillStyle = '#ea580c';
     ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x + 5, cy - 7);
+    ctx.lineTo(x + 8, cy - 13);
+    ctx.lineTo(x + 3, cy - 9);
+    ctx.fillStyle = '#ea580c';
+    ctx.fill();
+
+    // Twinkling big black eyes with specular catchlights
+    ctx.beginPath();
+    ctx.arc(x - 4, cy - 1, 2.5, 0, Math.PI * 2);
+    ctx.arc(x + 4, cy - 1, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x - 4.8, cy - 1.8, 0.9, 0, Math.PI * 2);
+    ctx.arc(x + 3.2, cy - 1.8, 0.9, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Blushing cheeks
+    ctx.beginPath();
+    ctx.arc(x - 6.5, cy + 3, 2, 0, Math.PI * 2);
+    ctx.arc(x + 6.5, cy + 3, 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.65)';
+    ctx.fill();
+
+    // Tiny smile
+    ctx.beginPath();
+    ctx.arc(x, cy + 2, 2, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.strokeStyle = '#854d0e';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
     ctx.restore();
+  }
 
-    // Loaded active bubble
-    if (!this.projectile) {
-      this.drawBubble(ctx, x, y, this.shotManager.currentBubble, 'normal');
-    }
+  // Friendly green dinosaur mascot standing at bottom left
+  drawDinosaur(ctx) {
+    ctx.save();
+    const cx = 76;
+    const cy = 548;
 
-    // Next bubble preview circle (bottom-left)
-    const nextX = x - 55;
-    const nextY = y + 15;
+    // Tail curving to the left
     ctx.beginPath();
-    ctx.arc(nextX, nextY, 17, 0, Math.PI * 2);
-    ctx.fillStyle = '#0f172a';
+    ctx.moveTo(cx - 22, cy + 16);
+    ctx.quadraticCurveTo(cx - 52, cy + 20, cx - 58, cy - 4);
+    ctx.quadraticCurveTo(cx - 44, cy + 6, cx - 18, cy + 6);
+    ctx.fillStyle = '#22c55e';
     ctx.fill();
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    this.drawBubble(ctx, nextX, nextY, this.shotManager.nextBubble, 'normal');
+    // Tail tip spine
+    ctx.beginPath();
+    ctx.moveTo(cx - 54, cy - 6);
+    ctx.lineTo(cx - 60, cy - 14);
+    ctx.lineTo(cx - 48, cy - 4);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fill();
 
-    // Swap icon indicator
-    ctx.font = '12px sans-serif';
+    // Triangular back plates
+    [
+      { x: cx - 34, y: cy + 2, size: 7 },
+      { x: cx - 22, y: cy - 9, size: 8 },
+      { x: cx - 10, y: cy - 20, size: 8 },
+      { x: cx + 2, y: cy - 30, size: 7 }
+    ].forEach(sp => {
+      ctx.beginPath();
+      ctx.moveTo(sp.x - sp.size, sp.y + 2);
+      ctx.lineTo(sp.x - sp.size * 0.4, sp.y - sp.size * 1.3);
+      ctx.lineTo(sp.x + sp.size * 0.5, sp.y);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Left foot / leg behind
+    ctx.beginPath();
+    ctx.ellipse(cx - 18, cy + 30, 13, 7, -0.15, 0, Math.PI * 2);
+    ctx.fillStyle = '#16a34a';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Main Body
+    ctx.beginPath();
+    ctx.ellipse(cx - 2, cy + 10, 24, 23, 0.1, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Cream / Yellow Belly
+    ctx.beginPath();
+    ctx.ellipse(cx + 6, cy + 12, 14, 16, 0.25, 0, Math.PI * 2);
+    ctx.fillStyle = '#fef08a';
+    ctx.fill();
+    ctx.strokeStyle = '#ca8a04';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Right foot in front
+    ctx.beginPath();
+    ctx.ellipse(cx + 10, cy + 32, 14, 8, 0.05, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Toes
+    [-1, 6, 13].forEach(tx => {
+      ctx.beginPath();
+      ctx.arc(cx + tx, cy + 36, 2.2, 0, Math.PI);
+      ctx.fillStyle = '#fef08a';
+      ctx.fill();
+    });
+
+    // Front arm
+    ctx.beginPath();
+    ctx.ellipse(cx + 6, cy + 8, 6, 10, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#16a34a';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Head
+    const hx = cx + 10;
+    const hy = cy - 22;
+
+    ctx.beginPath();
+    ctx.ellipse(hx, hy, 21, 17, -0.15, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Snout / cheek
+    ctx.beginPath();
+    ctx.ellipse(hx + 12, hy + 4, 13, 10, 0.1, 0, Math.PI * 2);
+    ctx.fillStyle = '#4ade80';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Smiling mouth
+    ctx.beginPath();
+    ctx.arc(hx + 11, hy + 4, 8.5, 0.1 * Math.PI, 0.85 * Math.PI);
+    ctx.strokeStyle = '#14532d';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // White tooth
+    ctx.beginPath();
+    ctx.moveTo(hx + 8, hy + 9);
+    ctx.lineTo(hx + 11, hy + 14);
+    ctx.lineTo(hx + 14, hy + 9);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Nostril dot
+    ctx.beginPath();
+    ctx.arc(hx + 19, hy + 2, 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#14532d';
+    ctx.fill();
+
+    // Big expressive eyes
+    // Back eye
+    ctx.beginPath();
+    ctx.ellipse(hx - 2, hy - 9, 6.5, 8.5, -0.1, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(hx, hy - 9, 4.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(hx + 1.2, hy - 10.5, 1.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Front eye
+    ctx.beginPath();
+    ctx.ellipse(hx + 10, hy - 8, 8, 10, 0.05, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(hx + 12, hy - 8, 5.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(hx + 13.5, hy - 10, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Blushing rosy cheeks
+    ctx.beginPath();
+    ctx.ellipse(hx + 3, hy + 3, 4, 2.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Shooter Launcher Base Ring & Loaded Bubbles (as per reference screenshot)
+  drawLauncher(ctx) {
+    const lx = this.launcherPos.x;
+    const ly = this.launcherPos.y;
+    const baseX = lx;
+    const baseY = ly + 26; // Center of the shots ring
+
+    ctx.save();
+
+    // 1. Glowing Shooter Base Ring with remaining shot counter
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(baseX, baseY, 30, 0, Math.PI * 2);
+    // Dark glass circle fill
+    ctx.fillStyle = 'rgba(8, 14, 28, 0.85)';
+    ctx.fill();
+
+    // Glowing white circular rim
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.85)';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.restore();
+
+    // Remaining shots number (e.g. "25") in bold white text
+    ctx.save();
+    ctx.font = 'bold 22px "Inter", "Arial Rounded MT Bold", -apple-system, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⇄', x - 28, y + 18);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(this.shotManager.shotsRemaining, baseX, baseY + 6);
+    ctx.restore();
+
+    // 2. Next Bubble preview docked on the lower-right of the shooter ring
+    const nextX = baseX + 28;
+    const nextY = baseY + 16;
+    const nextR = 18;
+
+    // Subtle docking shadow under next bubble
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(nextX, nextY, nextR + 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fill();
+    ctx.restore();
+
+    // Next bubble inside dock
+    this.drawBubble(ctx, nextX, nextY, this.shotManager.nextBubble, 'normal', nextR);
+
+    // Swap badge indicator on next bubble
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(nextX + 11, nextY - 11, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.fill();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillStyle = '#f59e0b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⇄', nextX + 11, nextY - 10.5);
+    ctx.restore();
+
+    // 3. Loaded Active Bubble seated at the top of the ring
+    if (!this.projectile) {
+      // Golden aura behind active bubble
+      ctx.save();
+      const aura = ctx.createRadialGradient(lx, ly, 8, lx, ly, 36);
+      aura.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+      aura.addColorStop(1, 'rgba(255, 215, 0, 0)');
+      ctx.beginPath();
+      ctx.arc(lx, ly, 36, 0, Math.PI * 2);
+      ctx.fillStyle = aura;
+      ctx.fill();
+      ctx.restore();
+
+      // Render the loaded active bubble with full 3D shine
+      this.drawBubble(ctx, lx, ly, this.shotManager.currentBubble, 'normal', BUBBLE_RADIUS);
+    }
 
     ctx.restore();
   }

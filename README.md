@@ -199,20 +199,30 @@ The server strictly rejects forged or unearned scores:
 - Includes category filtering: Global Hall, Weekly Rush, and Friends.
 - Real-time personal rank indicator (`Your Standings`).
 
-## 15. Deployment Guide
+## 15. Deployment
+- **Live Frontend (Netlify):** [https://bubblesort-muskan.netlify.app](https://bubblesort-muskan.netlify.app)
+- **Live Backend API:** [https://bubblesort-muskan.netlify.app/api](https://bubblesort-muskan.netlify.app/api)
+- **GitHub Repository:** [https://github.com/Muskanyadav29/BubbleSort](https://github.com/Muskanyadav29/BubbleSort)
+
+### Deployment Configuration
 - **Frontend (Vercel / Netlify)**:
-  - Root directory: `client`
+  - Base / Root directory: `client`
   - Build command: `npm run build`
-  - Output directory: `dist`
-  - Environment variable: `VITE_API_URL=https://your-backend.onrender.com/api`, `VITE_GAME_NAME=BUBBLE BLAST ADVENTURE`
-- **Backend (Render / Railway)**:
+  - Publish / Output directory: `dist`
+  - Environment variable: `VITE_API_URL=https://bubblesort-muskan.netlify.app/api`, `VITE_GAME_NAME=BUBBLE BLAST ADVENTURE`
+- **Backend (Render / Railway / Vercel Serverless)**:
   - Root directory: `server`
   - Build command: `npm install`
   - Start command: `node server.js`
   - Environment variables: `GAME_NAME`, `PORT`, `JWT_SECRET`, `MONGODB_URI`
 
-## 16. Screenshots & Media
-All core gameplay interactions, responsive aiming, and leaderboards are verified. The recording of the automated gameplay verification session is stored in the project artifacts directory.
+## 16. Screenshots
+The project includes a complete glassmorphism UI design, responsive canvas aiming, interactive Level Select with 45+ stages, global leaderboard standings, career achievements, and an in-engine Level Editor.
 
-## 17. Known Limitations
-- Background music uses Web Audio API oscillators, which require a preliminary user interaction (click/touch) to resume the browser's `AudioContext` per standard browser security policies.
+## 17. Demo Video
+- **Demonstration Walkthrough:** [Demo Video Link]
+- Video covers: Landing page, registration, login, dashboard, level selection, aiming guide, shooting, wall bounce, match-3 BFS detection, popping animations, floating bubble cascade drops, combo streaks, boosters, rescue objectives, 3-star level completion, failure states, game history, leaderboards, achievements, audio toggles, and mobile responsiveness.
+
+## 18. Known Limitations
+- **Web Audio Autoplay Policy:** Modern web browsers require an initial user interaction (click/touch) on the page before the Web Audio API context can begin playback.
+- **Offline Mode Synchronization:** When playing offline without an active internet connection, completed levels are stored securely in local browser storage and synchronize with backend leaderboards once connectivity is restored.

@@ -111,7 +111,31 @@ export default function DashboardPage({ user }) {
           <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff' }}>
             {completedCount}
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Stages Cleared</span>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Levels Completed</span>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '1.25rem', textAlign: 'center' }}>
+          <Trophy size={24} color="#eab308" style={{ margin: '0 auto 0.4rem' }} />
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff' }}>
+            {(user?.bestScore || user?.totalScore || 0).toLocaleString()}
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Best Score</span>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '1.25rem', textAlign: 'center' }}>
+          <Award size={24} color="#8b5cf6" style={{ margin: '0 auto 0.4rem' }} />
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff' }}>
+            {user?.rescuedObjects || 0}
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Rescues</span>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '1.25rem', textAlign: 'center' }}>
+          <Star size={24} color="#06b6d4" style={{ margin: '0 auto 0.4rem' }} />
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff' }}>
+            {user?.achievements ? `${user.achievements.length} / 10` : '10 / 10'}
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Achievements</span>
         </div>
 
       </div>

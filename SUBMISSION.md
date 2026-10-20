@@ -7,10 +7,10 @@
 **Project Name:** BUBBLE BLAST ADVENTURE  
 **Configured Game Name:** BUBBLE BLAST ADVENTURE  
 
-- **GitHub Repository:** [URL]
-- **Live Website:** [URL]
-- **Backend API:** [URL]
-- **Demo Video:** [URL]
+- **GitHub Repository:** https://github.com/Muskanyadav29/BubbleSort
+- **Live Website:** https://bubblesort-muskan.netlify.app
+- **Backend API:** https://bubblesort-muskan.netlify.app/api
+- **Demo Video:** [Demo Video Link / Walkthrough]
 
 ---
 

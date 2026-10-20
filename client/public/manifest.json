@@ -1,0 +1,17 @@
+{
+  "name": "Bubble Blast Adventure",
+  "short_name": "BubbleBlast",
+  "description": "Production-quality full-stack web bubble shooter game with 45+ levels and real-time physics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

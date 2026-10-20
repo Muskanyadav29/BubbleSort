@@ -30,6 +30,8 @@ export default function GamePage({ user, onProgressUpdate }) {
     combo: 0,
     shotsRemaining: 20,
     shotsUsed: 0,
+    currentBubble: 'blue',
+    nextBubble: 'red',
     objectiveDescription: 'Loading level...',
     canUndo: false
   });
@@ -43,6 +45,26 @@ export default function GamePage({ user, onProgressUpdate }) {
 
   const [soundOn, setSoundOn] = useState(soundEngine.soundEnabled);
   const [musicOn, setMusicOn] = useState(soundEngine.musicEnabled);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Fullscreen API toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   // Initialize Level & Game Engine
   useEffect(() => {
@@ -162,20 +184,53 @@ export default function GamePage({ user, onProgressUpdate }) {
     engineRef.current.setAim(targetX, targetY);
   };
 
-  const handlePointerUp = () => {
-    if (!engineRef.current) return;
+  const handlePointerUp = (e) => {
+    if (!engineRef.current || !canvasRef.current) return;
+
+    // Check if the user clicked/tapped the swap zone around the launcher preview
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+    if (clientX !== undefined && clientY !== undefined) {
+      const targetX = (clientX - rect.left) * scaleX;
+      const targetY = (clientY - rect.top) * scaleY;
+
+      // Check if user clicked/tapped the swap zone (next bubble or pedestal ring)
+      if (engineRef.current?.isSwapZone && engineRef.current.isSwapZone(targetX, targetY)) {
+        handleSwap();
+        return;
+      }
+    }
+
     engineRef.current.shoot();
   };
 
-  // Keyboard Shortcuts (Item 52)
+  const handleSwap = () => {
+    if (engineRef.current) {
+      engineRef.current.swapBubbles();
+      setMascotMessage('Swapped active bubble!');
+    }
+  };
+
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!engineRef.current) return;
       if (e.code === 'Space') {
         e.preventDefault();
         engineRef.current.shoot();
+      } else if (e.code === 'KeyS' || e.code === 'KeyC') {
+        handleSwap();
       } else if (e.code === 'KeyR') {
         handleRestart();
+      } else if (e.code === 'KeyZ') {
+        handleUndo();
+      } else if (e.code === 'KeyH') {
+        handleHint();
       } else if (e.code === 'Escape') {
         if (engineState.gameState === GAME_STATES.PAUSED) {
           engineRef.current.resume();
@@ -226,122 +281,151 @@ export default function GamePage({ user, onProgressUpdate }) {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '0.5rem 1rem 2rem 1rem' }}>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      width: '100vw',
+      height: '100vh',
+      height: '100dvh',
+      overflow: 'hidden',
+      background: 'radial-gradient(circle at 50% 20%, #151b32 0%, #0a0e1c 60%, #030611 100%)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'stretch',
+      userSelect: 'none'
+    }}>
       
-      {/* Game HUD */}
-      <GameHUD
-        levelNumber={levelId}
-        score={engineState.score}
-        shotsRemaining={engineState.shotsRemaining}
-        combo={engineState.combo}
-        stars={engineState.stars}
-        objectiveDescription={engineState.objectiveDescription}
-        canUndo={engineState.canUndo}
-        onUndo={handleUndo}
-        onHint={handleHint}
-        onPause={() => engineRef.current?.pause()}
-      />
-
-      {/* Main Game Board Container */}
+      {/* Mobile App Viewport Shell */}
       <div style={{
-        position: 'relative',
         width: '100%',
-        maxWidth: '400px',
-        margin: '0 auto',
-        borderRadius: '1.25rem',
+        maxWidth: '460px',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
-        border: '3px solid rgba(56, 189, 248, 0.3)',
-        background: 'linear-gradient(180deg, #090d16 0%, #0f172a 100%)',
-        touchAction: 'none'
+        boxShadow: '0 0 80px rgba(0,0,0,0.85)'
       }}>
-        
-        {/* Responsive Canvas */}
-        <canvas
-          ref={canvasRef}
-          width={400}
-          height={620}
-          style={{
-            display: 'block',
-            width: '100%',
-            height: 'auto',
-            aspectRatio: '400/620',
-            cursor: 'crosshair'
+
+        {/* Top Mobile App Header */}
+        <GameHUD
+          levelNumber={levelId}
+          score={engineState.score}
+          shotsRemaining={engineState.shotsRemaining}
+          combo={engineState.combo}
+          stars={engineState.stars}
+          objectiveDescription={engineState.objectiveDescription}
+          onBack={() => navigate('/levels')}
+          onPause={() => engineRef.current?.pause()}
+          soundOn={soundOn}
+          onToggleSound={() => {
+            const next = !soundOn;
+            soundEngine.setSoundEnabled(next);
+            setSoundOn(next);
           }}
-          onMouseMove={handlePointerMove}
-          onMouseUp={handlePointerUp}
-          onTouchMove={handlePointerMove}
-          onTouchEnd={handlePointerUp}
+          musicOn={musicOn}
+          onToggleMusic={() => {
+            const next = !musicOn;
+            soundEngine.setMusicEnabled(next);
+            setMusicOn(next);
+          }}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
 
-        {/* Modal: Level Complete */}
-        {engineState.gameState === GAME_STATES.LEVEL_COMPLETE && (
-          <LevelComplete
-            levelNumber={levelId}
-            score={engineState.score}
-            stars={engineState.stars}
-            shotsUsed={engineState.shotsUsed}
-            shotsRemaining={engineState.shotsRemaining}
-            bubblesPopped={engineState.bubblesPoppedCount || 12}
-            bestCombo={engineState.maxCombo || 1}
-            onNextLevel={handleNextLevel}
-            onReplay={handleRestart}
-            onLevelSelect={() => navigate('/levels')}
+        {/* Center Game Playfield Area (Canvas scales with object-fit) */}
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          position: 'relative',
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          overflow: 'hidden',
+          touchAction: 'none'
+        }}>
+          
+          <canvas
+            ref={canvasRef}
+            width={400}
+            height={620}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'block',
+              cursor: 'crosshair'
+            }}
+            onMouseMove={handlePointerMove}
+            onMouseUp={handlePointerUp}
+            onTouchMove={handlePointerMove}
+            onTouchEnd={handlePointerUp}
           />
-        )}
 
-        {/* Modal: Game Over */}
-        {engineState.gameState === GAME_STATES.LEVEL_FAILED && (
-          <GameOver
-            extraShotAvailable={inventory.extraShot > 0}
-            onUseExtraShotBooster={() => {
-              handleUseBooster('extraShot');
-              engineRef.current?.setState(GAME_STATES.READY);
-            }}
-            onRetry={handleRestart}
-            onLevelSelect={() => navigate('/levels')}
-          />
-        )}
+          {/* Modal: Level Complete */}
+          {engineState.gameState === GAME_STATES.LEVEL_COMPLETE && (
+            <LevelComplete
+              levelNumber={levelId}
+              score={engineState.score}
+              stars={engineState.stars}
+              shotsUsed={engineState.shotsUsed}
+              shotsRemaining={engineState.shotsRemaining}
+              bubblesPopped={engineState.bubblesPoppedCount || 12}
+              bestCombo={engineState.maxCombo || 1}
+              onNextLevel={handleNextLevel}
+              onReplay={handleRestart}
+              onLevelSelect={() => navigate('/levels')}
+            />
+          )}
 
-        {/* Modal: Paused */}
-        {engineState.gameState === GAME_STATES.PAUSED && (
-          <PauseModal
-            onResume={() => engineRef.current?.resume()}
-            onRestart={handleRestart}
-            onExit={() => navigate('/levels')}
-            soundOn={soundOn}
-            musicOn={musicOn}
-            onToggleSound={() => {
-              const next = !soundOn;
-              soundEngine.setSoundEnabled(next);
-              setSoundOn(next);
-            }}
-            onToggleMusic={() => {
-              const next = !musicOn;
-              soundEngine.setMusicEnabled(next);
-              setMusicOn(next);
-            }}
-          />
-        )}
+          {/* Modal: Game Over */}
+          {engineState.gameState === GAME_STATES.LEVEL_FAILED && (
+            <GameOver
+              extraShotAvailable={inventory.extraShot > 0}
+              onUseExtraShotBooster={() => {
+                handleUseBooster('extraShot');
+                engineRef.current?.setState(GAME_STATES.READY);
+              }}
+              onRetry={handleRestart}
+              onLevelSelect={() => navigate('/levels')}
+            />
+          )}
+
+          {/* Modal: Paused */}
+          {engineState.gameState === GAME_STATES.PAUSED && (
+            <PauseModal
+              onResume={() => engineRef.current?.resume()}
+              onRestart={handleRestart}
+              onExit={() => navigate('/levels')}
+              soundOn={soundOn}
+              musicOn={musicOn}
+              onToggleSound={() => {
+                const next = !soundOn;
+                soundEngine.setSoundEnabled(next);
+                setSoundOn(next);
+              }}
+              onToggleMusic={() => {
+                const next = !musicOn;
+                soundEngine.setMusicEnabled(next);
+                setMusicOn(next);
+              }}
+            />
+          )}
+        </div>
+
+        {/* Bottom Control Dock: Undo, Swap, Boosters, Hint */}
+        <BoosterBar
+          inventory={inventory}
+          onUseBooster={handleUseBooster}
+          activeBoosters={activeBoosters}
+          canUndo={engineState.canUndo}
+          onUndo={handleUndo}
+          onHint={handleHint}
+          onSwap={handleSwap}
+          nextBubble={engineState.nextBubble || 'blue'}
+        />
+
       </div>
-
-      {/* Booster Dock */}
-      <BoosterBar
-        inventory={inventory}
-        onUseBooster={handleUseBooster}
-        activeBoosters={activeBoosters}
-      />
-
-      {/* Mascot Companion at bottom */}
-      <div style={{
-        marginTop: '0.85rem',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <Mascot mood={mascotMood} message={mascotMessage} size={65} />
-      </div>
-
     </div>
   );
 }

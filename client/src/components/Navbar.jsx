@@ -65,17 +65,23 @@ export default function Navbar({ user, onLogout }) {
 
         {/* Desktop Navigation Links */}
         <div style={{ display: 'none', md: 'flex', gap: '1.25rem', alignItems: 'center' }} className="desktop-links">
+          <Link to="/" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
+            Home
+          </Link>
           <Link to="/levels" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
             <Grid size={18} /> Levels
-          </Link>
-          <Link to="/daily" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
-            <Calendar size={18} /> Daily
           </Link>
           <Link to="/leaderboard" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
             <Trophy size={18} /> Leaderboard
           </Link>
           <Link to="/achievements" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
             <Award size={18} /> Achievements
+          </Link>
+          <Link to="/daily" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
+            <Calendar size={18} /> Daily
+          </Link>
+          <Link to="/profile" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
+            <User size={18} /> Profile
           </Link>
           <Link to="/admin" className="nav-link" onClick={() => soundEngine.playButtonClick()}>
             <ShieldAlert size={18} /> Editor
