@@ -972,198 +972,12 @@ export class GameEngine {
     ctx.restore();
   }
 
-  // Friendly green dinosaur mascot standing at bottom left
-  drawDinosaur(ctx) {
-    ctx.save();
-    const cx = 76;
-    const cy = 548;
-
-    // Tail curving to the left
-    ctx.beginPath();
-    ctx.moveTo(cx - 22, cy + 16);
-    ctx.quadraticCurveTo(cx - 52, cy + 20, cx - 58, cy - 4);
-    ctx.quadraticCurveTo(cx - 44, cy + 6, cx - 18, cy + 6);
-    ctx.fillStyle = '#22c55e';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Tail tip spine
-    ctx.beginPath();
-    ctx.moveTo(cx - 54, cy - 6);
-    ctx.lineTo(cx - 60, cy - 14);
-    ctx.lineTo(cx - 48, cy - 4);
-    ctx.fillStyle = '#f59e0b';
-    ctx.fill();
-
-    // Triangular back plates
-    [
-      { x: cx - 34, y: cy + 2, size: 7 },
-      { x: cx - 22, y: cy - 9, size: 8 },
-      { x: cx - 10, y: cy - 20, size: 8 },
-      { x: cx + 2, y: cy - 30, size: 7 }
-    ].forEach(sp => {
-      ctx.beginPath();
-      ctx.moveTo(sp.x - sp.size, sp.y + 2);
-      ctx.lineTo(sp.x - sp.size * 0.4, sp.y - sp.size * 1.3);
-      ctx.lineTo(sp.x + sp.size * 0.5, sp.y);
-      ctx.fillStyle = '#f59e0b';
-      ctx.fill();
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    });
-
-    // Left foot / leg behind
-    ctx.beginPath();
-    ctx.ellipse(cx - 18, cy + 30, 13, 7, -0.15, 0, Math.PI * 2);
-    ctx.fillStyle = '#16a34a';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Main Body
-    ctx.beginPath();
-    ctx.ellipse(cx - 2, cy + 10, 24, 23, 0.1, 0, Math.PI * 2);
-    ctx.fillStyle = '#22c55e';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-
-    // Cream / Yellow Belly
-    ctx.beginPath();
-    ctx.ellipse(cx + 6, cy + 12, 14, 16, 0.25, 0, Math.PI * 2);
-    ctx.fillStyle = '#fef08a';
-    ctx.fill();
-    ctx.strokeStyle = '#ca8a04';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    // Right foot in front
-    ctx.beginPath();
-    ctx.ellipse(cx + 10, cy + 32, 14, 8, 0.05, 0, Math.PI * 2);
-    ctx.fillStyle = '#22c55e';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    // Toes
-    [-1, 6, 13].forEach(tx => {
-      ctx.beginPath();
-      ctx.arc(cx + tx, cy + 36, 2.2, 0, Math.PI);
-      ctx.fillStyle = '#fef08a';
-      ctx.fill();
-    });
-
-    // Front arm
-    ctx.beginPath();
-    ctx.ellipse(cx + 6, cy + 8, 6, 10, -0.6, 0, Math.PI * 2);
-    ctx.fillStyle = '#16a34a';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    // Head
-    const hx = cx + 10;
-    const hy = cy - 22;
-
-    ctx.beginPath();
-    ctx.ellipse(hx, hy, 21, 17, -0.15, 0, Math.PI * 2);
-    ctx.fillStyle = '#22c55e';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-
-    // Snout / cheek
-    ctx.beginPath();
-    ctx.ellipse(hx + 12, hy + 4, 13, 10, 0.1, 0, Math.PI * 2);
-    ctx.fillStyle = '#4ade80';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Smiling mouth
-    ctx.beginPath();
-    ctx.arc(hx + 11, hy + 4, 8.5, 0.1 * Math.PI, 0.85 * Math.PI);
-    ctx.strokeStyle = '#14532d';
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // White tooth
-    ctx.beginPath();
-    ctx.moveTo(hx + 8, hy + 9);
-    ctx.lineTo(hx + 11, hy + 14);
-    ctx.lineTo(hx + 14, hy + 9);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-
-    // Nostril dot
-    ctx.beginPath();
-    ctx.arc(hx + 19, hy + 2, 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#14532d';
-    ctx.fill();
-
-    // Big expressive eyes
-    // Back eye
-    ctx.beginPath();
-    ctx.ellipse(hx - 2, hy - 9, 6.5, 8.5, -0.1, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(hx, hy - 9, 4.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#0f172a';
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(hx + 1.2, hy - 10.5, 1.6, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-
-    // Front eye
-    ctx.beginPath();
-    ctx.ellipse(hx + 10, hy - 8, 8, 10, 0.05, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(hx + 12, hy - 8, 5.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#0f172a';
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(hx + 13.5, hy - 10, 2, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-
-    // Blushing rosy cheeks
-    ctx.beginPath();
-    ctx.ellipse(hx + 3, hy + 3, 4, 2.5, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  // Shooter Launcher Base Ring & Loaded Bubbles (as per reference screenshot)
+  // Shooter Launcher Base Ring & Loaded Bubbles (matching reference screenshot)
   drawLauncher(ctx) {
     const lx = this.launcherPos.x;
     const ly = this.launcherPos.y;
     const baseX = lx;
-    const baseY = ly + 26; // Center of the shots ring
+    const baseY = ly + 26; // Center of the shots counter ring
 
     ctx.save();
 
@@ -1176,65 +990,50 @@ export class GameEngine {
     ctx.fill();
 
     // Glowing white circular rim
-    ctx.lineWidth = 2.8;
+    ctx.lineWidth = 3.2;
     ctx.strokeStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.85)';
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
+    ctx.shadowBlur = 9;
     ctx.stroke();
     ctx.restore();
 
     // Remaining shots number (e.g. "25") in bold white text
     ctx.save();
-    ctx.font = 'bold 22px "Inter", "Arial Rounded MT Bold", -apple-system, sans-serif';
+    ctx.font = '900 24px "Inter", "Arial Rounded MT Bold", -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
     ctx.shadowBlur = 4;
     ctx.fillText(this.shotManager.shotsRemaining, baseX, baseY + 6);
     ctx.restore();
 
     // 2. Next Bubble preview docked on the lower-right of the shooter ring
-    const nextX = baseX + 28;
-    const nextY = baseY + 16;
-    const nextR = 18;
+    const nextX = baseX + 26;
+    const nextY = baseY + 14;
+    const nextR = 17;
 
-    // Subtle docking shadow under next bubble
+    // Subtle docking drop shadow under next bubble
     ctx.save();
     ctx.beginPath();
-    ctx.arc(nextX, nextY, nextR + 2, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.arc(nextX + 1, nextY + 2, nextR + 1, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
     ctx.fill();
     ctx.restore();
 
-    // Next bubble inside dock
+    // Next bubble inside dock (clean 3D bubble without badge, matching reference image)
     this.drawBubble(ctx, nextX, nextY, this.shotManager.nextBubble, 'normal', nextR);
-
-    // Swap badge indicator on next bubble
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(nextX + 11, nextY - 11, 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-    ctx.fill();
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.font = 'bold 9px sans-serif';
-    ctx.fillStyle = '#f59e0b';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('⇄', nextX + 11, nextY - 10.5);
-    ctx.restore();
 
     // 3. Loaded Active Bubble seated at the top of the ring
     if (!this.projectile) {
       // Golden aura behind active bubble
       ctx.save();
-      const aura = ctx.createRadialGradient(lx, ly, 8, lx, ly, 36);
-      aura.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+      const aura = ctx.createRadialGradient(lx, ly, 6, lx, ly, 38);
+      aura.addColorStop(0, 'rgba(255, 215, 0, 0.5)');
+      aura.addColorStop(0.5, 'rgba(255, 180, 0, 0.22)');
       aura.addColorStop(1, 'rgba(255, 215, 0, 0)');
       ctx.beginPath();
-      ctx.arc(lx, ly, 36, 0, Math.PI * 2);
+      ctx.arc(lx, ly, 38, 0, Math.PI * 2);
       ctx.fillStyle = aura;
       ctx.fill();
       ctx.restore();

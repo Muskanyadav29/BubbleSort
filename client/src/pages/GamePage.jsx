@@ -356,8 +356,10 @@ export default function GamePage({ user, onProgressUpdate }) {
               display: 'block',
               cursor: 'crosshair'
             }}
+            onMouseDown={handlePointerMove}
             onMouseMove={handlePointerMove}
             onMouseUp={handlePointerUp}
+            onTouchStart={handlePointerMove}
             onTouchMove={handlePointerMove}
             onTouchEnd={handlePointerUp}
           />
