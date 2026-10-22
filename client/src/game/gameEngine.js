@@ -76,18 +76,28 @@ export class GameEngine {
     this.boostersActive = { aimGuide: false };
     this.swapAnimation = null;
 
-    // Atmospheric twinkling background stars
-    this.backgroundStars = Array.from({ length: 32 }, () => ({
+    // Atmospheric twinkling celestial background stars
+    this.backgroundStars = Array.from({ length: 48 }, () => ({
       x: Math.random() * BOARD_WIDTH,
-      y: Math.random() * (BOARD_HEIGHT - 90),
-      radius: 0.6 + Math.random() * 1.3,
-      baseAlpha: 0.15 + Math.random() * 0.45,
-      speed: 1.2 + Math.random() * 2.2,
-      phase: Math.random() * Math.PI * 2
+      y: Math.random() * (BOARD_HEIGHT - 120),
+      radius: 0.5 + Math.random() * 1.4,
+      baseAlpha: 0.2 + Math.random() * 0.5,
+      speed: 1.0 + Math.random() * 2.5,
+      phase: Math.random() * Math.PI * 2,
+      color: Math.random() > 0.4 ? '#ffffff' : (Math.random() > 0.5 ? '#93c5fd' : '#fef08a')
     }));
 
-    // Undo stack
-    this.undoStack = [];
+    // Floating bioluminescent fireflies rising through the night jungle
+    this.fireflies = Array.from({ length: 14 }, () => ({
+      x: Math.random() * BOARD_WIDTH,
+      y: 360 + Math.random() * 230,
+      radius: 1.1 + Math.random() * 1.6,
+      speedY: 10 + Math.random() * 16,
+      wobbleSpeed: 1.5 + Math.random() * 2.0,
+      wobbleAmp: 14 + Math.random() * 18,
+      phase: Math.random() * Math.PI * 2,
+      alpha: 0.35 + Math.random() * 0.55
+    }));
 
     // Popped statistics
     this.poppedColors = {};
@@ -136,48 +146,39 @@ export class GameEngine {
     this.particles = [];
     this.floatingDrops = [];
     this.floatingTexts = [];
-    this.undoStack = [];
     this.poppedColors = {};
     this.boostersActive = { aimGuide: false };
     this.swapAnimation = null;
 
+    this.checkSingleBubbleRule();
     this.setState(GAME_STATES.READY);
     soundEngine.init();
   }
 
-  saveSnapshot() {
-    // Preserve state for undo
-    this.undoStack.push({
-      board: this.board.map(r => r.map(c => (c ? { ...c } : null))),
-      scoreState: this.scoreManager.getState(),
-      shotState: this.shotManager.getState(),
-      objectiveProgress: this.objectiveManager.progress,
-      poppedColors: { ...this.poppedColors }
-    });
-    // Keep max 3 undo snapshots
-    if (this.undoStack.length > 3) this.undoStack.shift();
-  }
+  // Single bubble on canvas detection
+  checkSingleBubbleRule() {
+    let bubbleCount = 0;
+    let lastColor = null;
 
-  undo() {
-    if (this.undoStack.length === 0 || this.state === GAME_STATES.SHOOTING || this.state === GAME_STATES.RESOLVING) {
-      return false;
+    for (let r = 0; r < this.board.length; r++) {
+      const cols = getColsInRow(r);
+      for (let c = 0; c < cols; c++) {
+        const bubble = this.board[r] && this.board[r][c];
+        if (bubble && bubble.color) {
+          bubbleCount++;
+          lastColor = bubble.color;
+        }
+      }
     }
 
-    const prev = this.undoStack.pop();
-    this.board = prev.board;
-    this.scoreManager.score = prev.scoreState.score;
-    this.scoreManager.combo = prev.scoreState.combo;
-    this.scoreManager.bubblesPoppedCount = prev.scoreState.bubblesPoppedCount;
-    this.shotManager.shotsRemaining = prev.shotState.shotsRemaining;
-    this.shotManager.shotsUsed = prev.shotState.shotsUsed;
-    this.shotManager.currentBubble = prev.shotState.currentBubble;
-    this.shotManager.nextBubble = prev.shotState.nextBubble;
-    this.poppedColors = prev.poppedColors;
-    this.objectiveManager.progress = prev.objectiveProgress;
-
-    soundEngine.playBooster();
-    this.setState(GAME_STATES.READY);
-    return true;
+    if (bubbleCount === 1 && lastColor && BUBBLE_THEMES[lastColor]) {
+      this.shotManager.currentBubble = lastColor;
+      this.shotManager.nextBubble = lastColor;
+      if (this.shotManager.queue) {
+        this.shotManager.queue = this.shotManager.queue.map(() => lastColor);
+      }
+      this.addFloatingText('🎯 FINAL TARGET!', BOARD_WIDTH / 2, 230, BUBBLE_THEMES[lastColor]?.light || '#FFD700');
+    }
   }
 
   // Aiming Controls
@@ -211,10 +212,8 @@ export class GameEngine {
       return false;
     }
 
-    this.saveSnapshot();
-
     const bubbleColor = this.shotManager.currentBubble;
-    const consumed = this.shotManager.consumeShot(this.levelConfig.colors);
+    const consumed = this.shotManager.consumeShot(this.getAvailableColors());
     if (!consumed) return false;
 
     // Launch moving projectile directly from the active loaded bubble position
@@ -270,7 +269,6 @@ export class GameEngine {
   selectBubble(color) {
     if (this.state === GAME_STATES.SHOOTING || this.state === GAME_STATES.RESOLVING) return false;
     if (!BUBBLE_THEMES[color]) return false;
-    this.saveSnapshot();
     this.shotManager.setCurrentBubble(color);
     this.spawnSwapParticles();
     soundEngine.playBubbleSelect();
@@ -473,6 +471,17 @@ export class GameEngine {
         this.swapAnimation = null;
       }
     }
+
+    // 6. Update Fireflies
+    if (this.fireflies) {
+      for (const f of this.fireflies) {
+        f.y -= f.speedY * dt;
+        if (f.y < 320) {
+          f.y = BOARD_HEIGHT + 15;
+          f.x = Math.random() * BOARD_WIDTH;
+        }
+      }
+    }
   }
 
   resolveBubbleCollision(proj) {
@@ -608,6 +617,9 @@ export class GameEngine {
       return;
     }
 
+    // Check if only 1 bubble is left on the canvas
+    this.checkSingleBubbleRule();
+
     // Ready for next shot
     this.setState(GAME_STATES.READY);
   }
@@ -723,29 +735,235 @@ export class GameEngine {
     return { polyline, bounces, collisionPoint, targetCell };
   }
 
+  // Atmospheric enchanted jungle background (Per reference visual, no dinosaur)
+  drawEnchantedJungleBackground(ctx) {
+    // 1. Deep night sky gradient (midnight navy to deep sapphire & teal)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, BOARD_HEIGHT);
+    skyGrad.addColorStop(0, '#030816');
+    skyGrad.addColorStop(0.25, '#051226');
+    skyGrad.addColorStop(0.55, '#071a35');
+    skyGrad.addColorStop(0.78, '#031424');
+    skyGrad.addColorStop(1, '#020b14');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+    // 2. Cosmic nebula / atmospheric glow in upper-mid sky
+    const nebulaGrad = ctx.createRadialGradient(BOARD_WIDTH / 2, 240, 20, BOARD_WIDTH / 2, 240, 240);
+    nebulaGrad.addColorStop(0, 'rgba(28, 58, 112, 0.28)');
+    nebulaGrad.addColorStop(0.5, 'rgba(14, 116, 144, 0.12)');
+    nebulaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = nebulaGrad;
+    ctx.fillRect(0, 60, BOARD_WIDTH, 380);
+
+    // 3. Twinkling celestial stars
+    const nowSec = performance.now() / 1000;
+    if (this.backgroundStars) {
+      for (const star of this.backgroundStars) {
+        const pulse = Math.sin(nowSec * star.speed + star.phase);
+        const alpha = Math.max(0.12, Math.min(0.9, star.baseAlpha + pulse * 0.35));
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = star.color || '#ffffff';
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+
+        // Cross flare on bright prominent stars
+        if (star.radius > 1.3 && pulse > 0.6) {
+          ctx.strokeStyle = star.color || '#ffffff';
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(star.x - 3.5, star.y);
+          ctx.lineTo(star.x + 3.5, star.y);
+          ctx.moveTo(star.x, star.y - 3.5);
+          ctx.lineTo(star.x, star.y + 3.5);
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 4. Distant jungle ridges & mountain silhouettes (Layer 1 - deep misty navy)
+    ctx.save();
+    ctx.fillStyle = '#05182b';
+    ctx.beginPath();
+    ctx.moveTo(0, 420);
+    ctx.bezierCurveTo(60, 395, 120, 430, 180, 410);
+    ctx.bezierCurveTo(240, 390, 290, 425, 340, 400);
+    ctx.bezierCurveTo(370, 385, 390, 410, BOARD_WIDTH, 415);
+    ctx.lineTo(BOARD_WIDTH, BOARD_HEIGHT);
+    ctx.lineTo(0, BOARD_HEIGHT);
+    ctx.closePath();
+    ctx.fill();
+
+    // 5. Midground jungle ridge & exotic tree canopies (Layer 2)
+    ctx.fillStyle = '#031120';
+    ctx.beginPath();
+    ctx.moveTo(0, 452);
+    ctx.bezierCurveTo(40, 436, 75, 418, 105, 442);
+    ctx.bezierCurveTo(155, 458, 205, 438, 260, 452);
+    ctx.bezierCurveTo(310, 442, 355, 428, BOARD_WIDTH, 448);
+    ctx.lineTo(BOARD_WIDTH, BOARD_HEIGHT);
+    ctx.lineTo(0, BOARD_HEIGHT);
+    ctx.closePath();
+    ctx.fill();
+
+    // Distant palm crowns on midground ridges
+    const drawDistantPalm = (px, py, scale) => {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#020d18';
+      // Trunk
+      ctx.beginPath();
+      ctx.moveTo(-1, 0);
+      ctx.quadraticCurveTo(-4, -18, -6, -32);
+      ctx.lineTo(-4, -32);
+      ctx.quadraticCurveTo(-2, -18, 1, 0);
+      ctx.fill();
+      // Fronds radiating out
+      for (let a = -2.4; a <= -0.7; a += 0.35) {
+        ctx.beginPath();
+        ctx.moveTo(-5, -32);
+        const fx = -5 + Math.cos(a) * 20;
+        const fy = -32 + Math.sin(a) * 16;
+        ctx.quadraticCurveTo(-5 + Math.cos(a) * 12, -32 + Math.sin(a) * 18 + 5, fx, fy);
+        ctx.strokeStyle = '#020d18';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+
+    drawDistantPalm(35, 440, 0.8);
+    drawDistantPalm(190, 445, 0.7);
+    drawDistantPalm(365, 435, 0.85);
+
+    // 6. Upward magical cyan beacon beam behind launcher
+    const beamGrad = ctx.createLinearGradient(0, 360, 0, 524);
+    beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+    beamGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.08)');
+    beamGrad.addColorStop(0.85, 'rgba(34, 211, 238, 0.18)');
+    beamGrad.addColorStop(1, 'rgba(56, 189, 248, 0.35)');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(BOARD_WIDTH / 2 - 14, 524);
+    ctx.lineTo(BOARD_WIDTH / 2 + 14, 524);
+    ctx.lineTo(BOARD_WIDTH / 2 + 38, 360);
+    ctx.lineTo(BOARD_WIDTH / 2 - 38, 360);
+    ctx.closePath();
+    ctx.fillStyle = beamGrad;
+    ctx.fill();
+    ctx.restore();
+
+    // 7. Foreground dense enchanted jungle flora (Layer 3 - dark deep silhouettes)
+    ctx.fillStyle = '#020810';
+
+    // Left Giant Prehistoric Mushroom & Tropical Leaves
+    // Mushroom Stem
+    ctx.beginPath();
+    ctx.moveTo(55, 570);
+    ctx.quadraticCurveTo(65, 525, 72, 495);
+    ctx.lineTo(82, 495);
+    ctx.quadraticCurveTo(76, 525, 75, 570);
+    ctx.fill();
+
+    // Mushroom Cap
+    ctx.beginPath();
+    ctx.ellipse(77, 492, 34, 18, -0.08, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bioluminescent dots on mushroom cap
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.55)';
+    [
+      { dx: -18, dy: -2, r: 2.2 },
+      { dx: -6, dy: -6, r: 2.8 },
+      { dx: 8, dy: -5, r: 2.4 },
+      { dx: 20, dy: 1, r: 1.8 }
+    ].forEach(dot => {
+      ctx.beginPath();
+      ctx.arc(77 + dot.dx, 492 + dot.dy, dot.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Left Foreground Palm Fronds & Ferns
+    ctx.fillStyle = '#01050d';
+    ctx.beginPath();
+    ctx.moveTo(0, 500);
+    ctx.bezierCurveTo(25, 485, 45, 505, 55, 530);
+    ctx.bezierCurveTo(40, 545, 20, 560, 0, 575);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 460);
+    ctx.bezierCurveTo(35, 465, 55, 485, 45, 510);
+    ctx.bezierCurveTo(25, 505, 10, 495, 0, 490);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right Foreground Jungle Plants, Reeds & Ferns
+    ctx.beginPath();
+    ctx.moveTo(BOARD_WIDTH, 510);
+    ctx.bezierCurveTo(370, 490, 345, 520, 335, 545);
+    ctx.bezierCurveTo(350, 560, 380, 570, BOARD_WIDTH, 580);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(BOARD_WIDTH, 470);
+    ctx.bezierCurveTo(365, 475, 340, 495, 355, 520);
+    ctx.bezierCurveTo(375, 515, 390, 500, BOARD_WIDTH, 495);
+    ctx.closePath();
+    ctx.fill();
+
+    // Ground foliage floor framing bottom
+    ctx.beginPath();
+    ctx.moveTo(0, 570);
+    ctx.quadraticCurveTo(80, 555, 150, 565);
+    ctx.quadraticCurveTo(200, 572, 260, 565);
+    ctx.quadraticCurveTo(330, 555, BOARD_WIDTH, 570);
+    ctx.lineTo(BOARD_WIDTH, BOARD_HEIGHT);
+    ctx.lineTo(0, BOARD_HEIGHT);
+    ctx.closePath();
+    ctx.fill();
+
+    // 8. Floating bioluminescent fireflies rising with gentle wavy paths
+    if (this.fireflies) {
+      for (const f of this.fireflies) {
+        const wobbleX = Math.sin(nowSec * f.wobbleSpeed + f.phase) * f.wobbleAmp;
+        const fy = f.y;
+        const fx = Math.max(8, Math.min(BOARD_WIDTH - 8, f.x + wobbleX));
+        const glowAlpha = Math.max(0.15, Math.min(0.85, f.alpha + Math.sin(nowSec * 3 + f.phase) * 0.3));
+
+        // Firefly soft outer aura
+        const fg = ctx.createRadialGradient(fx, fy, 0.5, fx, fy, f.radius * 4);
+        fg.addColorStop(0, `rgba(163, 230, 53, ${glowAlpha})`);
+        fg.addColorStop(0.5, `rgba(74, 222, 128, ${glowAlpha * 0.4})`);
+        fg.addColorStop(1, 'rgba(74, 222, 128, 0)');
+        ctx.beginPath();
+        ctx.arc(fx, fy, f.radius * 4, 0, Math.PI * 2);
+        ctx.fillStyle = fg;
+        ctx.fill();
+
+        // Bright inner spark
+        ctx.beginPath();
+        ctx.arc(fx, fy, f.radius * 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(254, 240, 138, ${glowAlpha})`;
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
   // --- RENDERING ---
   render() {
     const ctx = this.ctx;
     
-    // 1. Deep arcade game backdrop
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, BOARD_HEIGHT);
-    bgGrad.addColorStop(0, '#070c18');
-    bgGrad.addColorStop(0.5, '#0e1628');
-    bgGrad.addColorStop(1, '#050812');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-
-    // Atmospheric twinkling background stars
-    const nowSec = performance.now() / 1000;
-    if (this.backgroundStars) {
-      for (const star of this.backgroundStars) {
-        const alpha = Math.max(0.08, Math.min(0.85, star.baseAlpha + Math.sin(nowSec * star.speed + star.phase) * 0.25));
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.fill();
-      }
-    }
+    // 1. Enchanted night jungle backdrop (Per reference image, no dinosaur)
+    this.drawEnchantedJungleBackground(ctx);
 
     // Side wall bounce guides
     ctx.save();
@@ -1404,7 +1622,7 @@ export class GameEngine {
       availableColors: this.getAvailableColors(),
       objectiveDescription: this.objectiveManager.getProgressDescription(),
       isObjectiveCompleted: this.objectiveManager.isCompleted,
-      canUndo: this.undoStack.length > 0 && this.state !== GAME_STATES.SHOOTING && this.state !== GAME_STATES.RESOLVING
+      canUndo: false
     };
   }
 

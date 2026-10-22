@@ -34,8 +34,7 @@ export default function GamePage({ user, onProgressUpdate }) {
     currentBubble: 'blue',
     nextBubble: 'red',
     availableColors: ['red', 'blue', 'green', 'yellow'],
-    objectiveDescription: 'Loading level...',
-    canUndo: false
+    objectiveDescription: 'Loading level...'
   });
 
   const [isBubbleSelectorOpen, setIsBubbleSelectorOpen] = useState(false);
@@ -257,8 +256,6 @@ export default function GamePage({ user, onProgressUpdate }) {
         }
       } else if (e.code === 'KeyR') {
         handleRestart();
-      } else if (e.code === 'KeyZ') {
-        handleUndo();
       } else if (e.code === 'KeyH') {
         handleHint();
       } else if (e.code === 'Escape') {
@@ -282,12 +279,7 @@ export default function GamePage({ user, onProgressUpdate }) {
     setMascotMessage('Let’s try again! You can do it!');
   };
 
-  const handleUndo = () => {
-    if (engineRef.current) {
-      engineRef.current.undo();
-      setMascotMessage('Undid last shot!');
-    }
-  };
+
 
   const handleHint = () => {
     setMascotMood('thinking');
@@ -320,7 +312,7 @@ export default function GamePage({ user, onProgressUpdate }) {
       height: '100vh',
       height: '100dvh',
       overflow: 'hidden',
-      background: 'radial-gradient(circle at 50% 20%, #151b32 0%, #0a0e1c 60%, #030611 100%)',
+      background: 'radial-gradient(ellipse at 50% 15%, #081d3d 0%, #040e22 55%, #010610 100%)',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'stretch',
@@ -336,6 +328,7 @@ export default function GamePage({ user, onProgressUpdate }) {
         flexDirection: 'column',
         position: 'relative',
         overflow: 'hidden',
+        background: 'linear-gradient(180deg, #030816 0%, #06152d 35%, #081d3b 65%, #020b14 100%)',
         boxShadow: '0 0 80px rgba(0,0,0,0.85)'
       }}>
 
@@ -348,6 +341,7 @@ export default function GamePage({ user, onProgressUpdate }) {
           stars={engineState.stars}
           objectiveDescription={engineState.objectiveDescription}
           onBack={() => navigate('/levels')}
+          onRestart={handleRestart}
           onPause={() => engineRef.current?.pause()}
           soundOn={soundOn}
           onToggleSound={() => {
@@ -395,39 +389,6 @@ export default function GamePage({ user, onProgressUpdate }) {
             onTouchMove={handlePointerMove}
             onTouchEnd={handlePointerUp}
           />
-
-          {/* Floating Quick Action: Change / Select Bubble */}
-          <button
-            onClick={() => {
-              soundEngine.playButtonClick();
-              setIsBubbleSelectorOpen(true);
-            }}
-            title="Change or select different bubble color"
-            style={{
-              position: 'absolute',
-              bottom: '12px',
-              left: '12px',
-              zIndex: 15,
-              background: 'rgba(15, 23, 42, 0.88)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              border: '1.5px solid rgba(56, 189, 248, 0.4)',
-              borderRadius: '9999px',
-              padding: '0.35rem 0.65rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              color: '#38bdf8',
-              fontSize: '0.72rem',
-              fontWeight: '800',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.2)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <span style={{ fontSize: '0.85rem' }}>🎨</span>
-            <span>Change Bubble</span>
-          </button>
 
           {/* Modal: Bubble Selector / Color Palette */}
           <BubbleSelector
@@ -492,13 +453,11 @@ export default function GamePage({ user, onProgressUpdate }) {
           )}
         </div>
 
-        {/* Bottom Control Dock: Undo, Swap, Select, Boosters, Hint */}
+        {/* Bottom Control Dock: Swap, Select, Boosters, Hint */}
         <BoosterBar
           inventory={inventory}
           onUseBooster={handleUseBooster}
           activeBoosters={activeBoosters}
-          canUndo={engineState.canUndo}
-          onUndo={handleUndo}
           onHint={handleHint}
           onSwap={handleSwap}
           onOpenBubbleSelector={() => setIsBubbleSelectorOpen(true)}

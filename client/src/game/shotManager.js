@@ -26,6 +26,14 @@ export class ShotManager {
     this.shotsRemaining--;
     this.shotsUsed++;
 
+    // When only one color remains on board, enforce all upcoming shots to that color
+    if (availableColors && availableColors.length === 1) {
+      const singleColor = availableColors[0];
+      this.currentBubble = singleColor;
+      this.nextBubble = singleColor;
+      return true;
+    }
+
     // Advance queue
     this.currentBubble = this.nextBubble;
     if (this.queue.length > 0) {
