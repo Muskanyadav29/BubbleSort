@@ -68,7 +68,7 @@ export class ObjectiveManager {
   getProgressDescription() {
     const type = this.config.type;
     if (type === 'clear_all') {
-      return this.progress === 0 ? 'Clear all bubbles' : `${this.progress} bubbles left`;
+      return this.progress === 0 ? 'Clear all bubbles' : `${this.progress} ${this.progress === 1 ? 'bubble' : 'bubbles'} left`;
     }
     if (type === 'rescue') {
       return `Rescued: ${this.progress} / ${this.target}`;

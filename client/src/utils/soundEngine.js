@@ -92,6 +92,23 @@ class SoundEngine {
     this.playTone(600, 0.08, 'triangle', 400);
   }
 
+  playSwap() {
+    if (!this.soundEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+    this.playTone(480, 0.1, 'sine', 840, 0.7);
+    setTimeout(() => {
+      this.playTone(840, 0.08, 'triangle', 1050, 0.5);
+    }, 40);
+  }
+
+  playBubbleSelect() {
+    if (!this.soundEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+    this.playTone(520, 0.1, 'sine', 740, 0.7);
+  }
+
   playAim() {
     this.playTone(320, 0.05, 'sine', 340, 0.2);
   }

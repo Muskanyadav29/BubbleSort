@@ -74,6 +74,17 @@ export class GameEngine {
     this.floatingDrops = [];
     this.floatingTexts = [];
     this.boostersActive = { aimGuide: false };
+    this.swapAnimation = null;
+
+    // Atmospheric twinkling background stars
+    this.backgroundStars = Array.from({ length: 32 }, () => ({
+      x: Math.random() * BOARD_WIDTH,
+      y: Math.random() * (BOARD_HEIGHT - 90),
+      radius: 0.6 + Math.random() * 1.3,
+      baseAlpha: 0.15 + Math.random() * 0.45,
+      speed: 1.2 + Math.random() * 2.2,
+      phase: Math.random() * Math.PI * 2
+    }));
 
     // Undo stack
     this.undoStack = [];
@@ -128,6 +139,7 @@ export class GameEngine {
     this.undoStack = [];
     this.poppedColors = {};
     this.boostersActive = { aimGuide: false };
+    this.swapAnimation = null;
 
     this.setState(GAME_STATES.READY);
     soundEngine.init();
@@ -223,18 +235,92 @@ export class GameEngine {
   isSwapZone(x, y) {
     const baseX = this.launcherPos.x;
     const baseY = this.launcherPos.y + 26;
-    // Check next bubble dock (baseX + 28, baseY + 16)
-    if (Math.hypot(x - (baseX + 28), y - (baseY + 16)) <= 28) return true;
-    // Check circular pedestal area (baseX, baseY)
-    if (Math.hypot(x - baseX, y - baseY) <= 32 && y > this.launcherPos.y + 10) return true;
+    const nextX = baseX + 28;
+    const nextY = baseY + 14;
+
+    // 1. Next bubble dock area
+    if (Math.hypot(x - nextX, y - nextY) <= 26) return true;
+    // 2. Circular pedestal area
+    if (Math.hypot(x - baseX, y - baseY) <= 34 && y > this.launcherPos.y + 10) return true;
+    // 3. Right curved swap arrow zone (as marked in diagram)
+    if (Math.hypot(x - (baseX + 34), y - (baseY - 4)) <= 26) return true;
+    // 4. Left curved swap arrow zone (as marked in diagram)
+    if (Math.hypot(x - (baseX - 32), y - (baseY + 12)) <= 26) return true;
+
     return false;
   }
 
   swapBubbles() {
     if (this.state === GAME_STATES.SHOOTING || this.state === GAME_STATES.RESOLVING) return;
+    const fromCurrent = this.shotManager.currentBubble;
+    const fromNext = this.shotManager.nextBubble;
     this.shotManager.swapBubbles();
-    soundEngine.playButtonClick();
+    this.swapAnimation = {
+      progress: 0,
+      duration: 0.22,
+      elapsed: 0,
+      fromCurrent,
+      fromNext
+    };
+    this.spawnSwapParticles();
+    soundEngine.playSwap();
     this.setState(this.state);
+  }
+
+  selectBubble(color) {
+    if (this.state === GAME_STATES.SHOOTING || this.state === GAME_STATES.RESOLVING) return false;
+    if (!BUBBLE_THEMES[color]) return false;
+    this.saveSnapshot();
+    this.shotManager.setCurrentBubble(color);
+    this.spawnSwapParticles();
+    soundEngine.playBubbleSelect();
+    this.setState(this.state);
+    return true;
+  }
+
+  cycleBubble() {
+    if (this.state === GAME_STATES.SHOOTING || this.state === GAME_STATES.RESOLVING) return;
+    const colors = this.getAvailableColors();
+    if (colors.length === 0) return;
+    const idx = colors.indexOf(this.shotManager.currentBubble);
+    const nextIdx = (idx + 1) % colors.length;
+    this.selectBubble(colors[nextIdx]);
+  }
+
+  getAvailableColors() {
+    const set = new Set();
+    for (let r = 0; r < this.board.length; r++) {
+      const cols = getColsInRow(r);
+      for (let c = 0; c < cols; c++) {
+        const bubble = this.board[r] && this.board[r][c];
+        if (bubble && bubble.color && BUBBLE_THEMES[bubble.color] && bubble.type === 'normal') {
+          set.add(bubble.color);
+        }
+      }
+    }
+    if (set.size === 0) {
+      return ['red', 'blue', 'green', 'yellow'];
+    }
+    return Array.from(set);
+  }
+
+  spawnSwapParticles() {
+    const lx = this.launcherPos.x;
+    const ly = this.launcherPos.y;
+    for (let i = 0; i < 14; i++) {
+      const angle = (Math.PI * 2 * i) / 14 + (Math.random() - 0.5) * 0.4;
+      const speed = 40 + Math.random() * 70;
+      this.particles.push({
+        x: lx + (Math.random() - 0.5) * 20,
+        y: ly + (Math.random() - 0.5) * 20,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 2.2 + Math.random() * 2,
+        shrink: 4.5,
+        life: 0.35 + Math.random() * 0.15,
+        color: Math.random() > 0.4 ? '#10D05E' : '#38BDF8'
+      });
+    }
   }
 
   applyBooster(type) {
@@ -376,6 +462,15 @@ export class GameEngine {
 
       if (ft.opacity <= 0) {
         this.floatingTexts.splice(i, 1);
+      }
+    }
+
+    // 5. Update Swap Animation
+    if (this.swapAnimation) {
+      this.swapAnimation.elapsed += dt;
+      this.swapAnimation.progress = Math.min(1, this.swapAnimation.elapsed / this.swapAnimation.duration);
+      if (this.swapAnimation.elapsed >= this.swapAnimation.duration) {
+        this.swapAnimation = null;
       }
     }
   }
@@ -634,11 +729,30 @@ export class GameEngine {
     
     // 1. Deep arcade game backdrop
     const bgGrad = ctx.createLinearGradient(0, 0, 0, BOARD_HEIGHT);
-    bgGrad.addColorStop(0, '#080d1a');
-    bgGrad.addColorStop(0.5, '#0f172a');
-    bgGrad.addColorStop(1, '#060913');
+    bgGrad.addColorStop(0, '#070c18');
+    bgGrad.addColorStop(0.5, '#0e1628');
+    bgGrad.addColorStop(1, '#050812');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+    // Atmospheric twinkling background stars
+    const nowSec = performance.now() / 1000;
+    if (this.backgroundStars) {
+      for (const star of this.backgroundStars) {
+        const alpha = Math.max(0.08, Math.min(0.85, star.baseAlpha + Math.sin(nowSec * star.speed + star.phase) * 0.25));
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fill();
+      }
+    }
+
+    // Side wall bounce guides
+    ctx.save();
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.fillRect(0, CEILING_Y, 2, BOARD_HEIGHT - CEILING_Y);
+    ctx.fillRect(BOARD_WIDTH - 2, CEILING_Y, 2, BOARD_HEIGHT - CEILING_Y);
+    ctx.restore();
 
     // 2. Ceiling bar (Arcade stone/golden trim)
     const ceilingGrad = ctx.createLinearGradient(0, 0, 0, CEILING_Y);
@@ -648,8 +762,14 @@ export class GameEngine {
     ctx.fillStyle = ceilingGrad;
     ctx.fillRect(0, 0, BOARD_WIDTH, CEILING_Y - 4);
 
+    // Glowing golden energy barrier
+    ctx.save();
     ctx.fillStyle = '#f59e0b';
+    ctx.shadowColor = 'rgba(245, 158, 11, 0.7)';
+    ctx.shadowBlur = 6;
     ctx.fillRect(0, CEILING_Y - 4, BOARD_WIDTH, 3);
+    ctx.restore();
+
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, CEILING_Y - 1, BOARD_WIDTH, 1);
 
@@ -1020,76 +1140,251 @@ export class GameEngine {
     ctx.restore();
   }
 
-  // Shooter Launcher Base Ring & Loaded Bubbles (matching reference screenshot)
+  // Glowing curved swap arrow with animated energy pulses and sleek arrowhead (matching diagram marks)
+  drawCurvedArrow(ctx, sx, sy, cp1x, cp1y, cp2x, cp2y, ex, ey, pulse, rotAngle = 0, cx = 200, cy = 544) {
+    ctx.save();
+    if (rotAngle !== 0) {
+      ctx.translate(cx, cy);
+      ctx.rotate(rotAngle);
+      ctx.translate(-cx, -cy);
+    }
+
+    // 1. Neon Bloom Glow
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
+    ctx.strokeStyle = '#10D05E';
+    ctx.shadowColor = 'rgba(16, 208, 94, 0.9)';
+    ctx.shadowBlur = 10 * pulse;
+    ctx.lineWidth = 3.6;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Bright Core Stroke with Cyan Gradient
+    ctx.save();
+    const grad = ctx.createLinearGradient(sx, sy, ex, ey);
+    grad.addColorStop(0, '#34D399');
+    grad.addColorStop(0.5, '#6EE7B7');
+    grad.addColorStop(1, '#00F5D4');
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+
+    // 3. Electric racing light dashes
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
+    ctx.setLineDash([8, 12]);
+    ctx.lineDashOffset = -(Date.now() / 20) % 20;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Sharp gaming arrowhead pointing along curve tangent
+    const dx = ex - cp2x;
+    const dy = ey - cp2y;
+    const angle = Math.atan2(dy, dx);
+
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(2.5, 0); // sharp tip
+    ctx.lineTo(-10.5, -6.5);
+    ctx.lineTo(-7.5, 0); // sleek inward chevron notch
+    ctx.lineTo(-10.5, 6.5);
+    ctx.closePath();
+
+    ctx.fillStyle = '#10D05E';
+    ctx.shadowColor = 'rgba(16, 208, 94, 0.95)';
+    ctx.shadowBlur = 8 * pulse;
+    ctx.fill();
+
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  // Shooter Launcher Base Ring, Dual Curved Exchange Arrows & Loaded Bubbles
   drawLauncher(ctx) {
     const lx = this.launcherPos.x;
     const ly = this.launcherPos.y;
     const baseX = lx;
     const baseY = ly + 26; // Center of the shots counter ring
-
-    ctx.save();
-
-    // 1. Glowing Shooter Base Ring with remaining shot counter
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(baseX, baseY, 30, 0, Math.PI * 2);
-    // Dark glass circle fill
-    ctx.fillStyle = 'rgba(8, 14, 28, 0.85)';
-    ctx.fill();
-
-    // Glowing white circular rim
-    ctx.lineWidth = 3.2;
-    ctx.strokeStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
-    ctx.shadowBlur = 9;
-    ctx.stroke();
-    ctx.restore();
-
-    // Remaining shots number (e.g. "25") in bold white text
-    ctx.save();
-    ctx.font = '900 24px "Inter", "Arial Rounded MT Bold", -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-    ctx.shadowBlur = 4;
-    ctx.fillText(this.shotManager.shotsRemaining, baseX, baseY + 6);
-    ctx.restore();
-
-    // 2. Next Bubble preview docked on the lower-right of the shooter ring
-    const nextX = baseX + 26;
+    const nextX = baseX + 28;
     const nextY = baseY + 14;
     const nextR = 17;
 
-    // Subtle docking drop shadow under next bubble
+    const pulse = 0.88 + 0.12 * Math.sin(Date.now() / 260);
+
+    // Calculate positions during swap animation
+    let currentDrawX = lx;
+    let currentDrawY = ly;
+    let nextDrawX = nextX;
+    let nextDrawY = nextY;
+    let arrowRot = 0;
+
+    if (this.swapAnimation) {
+      const p = Math.min(1, this.swapAnimation.elapsed / this.swapAnimation.duration);
+      const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      arrowRot = ease * Math.PI;
+
+      // Active bubble curves into dock
+      currentDrawX = lx + (nextX - lx) * ease + Math.sin(ease * Math.PI) * 16;
+      currentDrawY = ly + (nextY - ly) * ease;
+
+      // Reserve bubble curves into active launcher
+      nextDrawX = nextX + (lx - nextX) * ease - Math.sin(ease * Math.PI) * 16;
+      nextDrawY = nextY + (ly - nextY) * ease;
+    }
+
     ctx.save();
+
+    // 1. Ambient Dais Shadow & Energy Well
+    ctx.save();
+    const underGlow = ctx.createRadialGradient(baseX, baseY + 6, 8, baseX, baseY + 8, 46);
+    underGlow.addColorStop(0, 'rgba(8, 14, 28, 0.85)');
+    underGlow.addColorStop(0.65, 'rgba(15, 23, 42, 0.4)');
+    underGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = underGlow;
     ctx.beginPath();
-    ctx.arc(nextX + 1, nextY + 2, nextR + 1, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.arc(baseX, baseY + 8, 46, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // Next bubble inside dock (clean 3D bubble without badge, matching reference image)
-    this.drawBubble(ctx, nextX, nextY, this.shotManager.nextBubble, 'normal', nextR);
+    // 2. Pedestal Base Ring with remaining shot counter
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(baseX, baseY, 30, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(8, 14, 28, 0.92)';
+    ctx.fill();
 
-    // 3. Loaded Active Bubble seated at the top of the ring
+    // Warning state when shots are low (<= 5)
+    const isLowAmmo = this.shotManager.shotsRemaining <= 5;
+    ctx.lineWidth = 3.2;
+    if (isLowAmmo) {
+      ctx.strokeStyle = '#EF4444';
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
+      ctx.shadowBlur = 10 * pulse;
+    } else {
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+      ctx.shadowBlur = 8;
+    }
+    ctx.stroke();
+
+    // Subtle inner tech bezel ring
+    ctx.beginPath();
+    ctx.arc(baseX, baseY, 26, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+
+    // Remaining shots number & "SHOTS" label
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Label
+    ctx.font = '800 8px "Inter", sans-serif';
+    ctx.fillStyle = isLowAmmo ? '#FCA5A5' : 'rgba(226, 232, 240, 0.8)';
+    ctx.fillText('SHOTS', baseX, baseY - 8);
+
+    // Number
+    ctx.font = '900 23px "Outfit", "Inter", -apple-system, sans-serif';
+    ctx.fillStyle = isLowAmmo ? '#F87171' : '#FFFFFF';
+    ctx.shadowColor = isLowAmmo ? 'rgba(239, 68, 68, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = isLowAmmo ? 6 : 4;
+    ctx.fillText(this.shotManager.shotsRemaining, baseX, baseY + 7);
+    ctx.restore();
+
+    // 3. Next Bubble preview docked on lower-right
+    // Docking socket ring
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(nextX, nextY, nextR + 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    // Drop shadow under next bubble
+    ctx.beginPath();
+    ctx.arc(nextX + 1, nextY + 2, nextR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fill();
+    ctx.restore();
+
+    // Render Next Bubble
+    const nextBubbleColor = this.swapAnimation ? this.swapAnimation.fromNext : this.shotManager.nextBubble;
+    this.drawBubble(ctx, nextDrawX, nextDrawY, nextBubbleColor, 'normal', nextR);
+
+    // 4. CURVED SWAP ARROWS (Matching user diagram marks)
+    // Right Arrow: curves clockwise down from active bubble to reserve bubble
+    this.drawCurvedArrow(
+      ctx,
+      lx + 23, ly - 6,   // sx, sy
+      lx + 46, ly + 6,   // cp1x, cp1y
+      nextX + 34, nextY - 6, // cp2x, cp2y
+      nextX + 16, nextY + 12, // ex, ey
+      pulse,
+      arrowRot,
+      baseX, baseY
+    );
+
+    // Left Arrow: curves clockwise up from bottom-left to active bubble
+    this.drawCurvedArrow(
+      ctx,
+      baseX - 16, baseY + 32, // sx, sy
+      baseX - 44, baseY + 18, // cp1x, cp1y
+      lx - 46, ly + 20,       // cp2x, cp2y
+      lx - 24, ly + 2,        // ex, ey
+      pulse,
+      arrowRot,
+      baseX, baseY
+    );
+
+    // 5. Loaded Active Bubble seated at top of pedestal
     if (!this.projectile) {
-      // Color-matching aura behind active bubble
-      const activeColor = this.shotManager.currentBubble;
+      const activeColor = this.swapAnimation ? this.swapAnimation.fromCurrent : this.shotManager.currentBubble;
       const activeTheme = BUBBLE_THEMES[activeColor] || BUBBLE_THEMES.red;
+
+      // Color aura under active bubble
       ctx.save();
-      const aura = ctx.createRadialGradient(lx, ly, 6, lx, ly, 38);
+      const aura = ctx.createRadialGradient(currentDrawX, currentDrawY, 6, currentDrawX, currentDrawY, 38);
       aura.addColorStop(0, hexToRgba(activeTheme.light, 0.55));
       aura.addColorStop(0.5, hexToRgba(activeTheme.main, 0.22));
       aura.addColorStop(1, hexToRgba(activeTheme.main, 0));
       ctx.beginPath();
-      ctx.arc(lx, ly, 38, 0, Math.PI * 2);
+      ctx.arc(currentDrawX, currentDrawY, 38, 0, Math.PI * 2);
       ctx.fillStyle = aura;
       ctx.fill();
       ctx.restore();
 
-      // Render the loaded active bubble with full 3D shine
-      this.drawBubble(ctx, lx, ly, this.shotManager.currentBubble, 'normal', BUBBLE_RADIUS);
+      // Subtle floating hover when ready
+      const hoverY = (this.state === GAME_STATES.READY || this.state === GAME_STATES.AIMING) && !this.swapAnimation
+        ? Math.sin(Date.now() / 320) * 1.5
+        : 0;
+
+      // Render 3D glossy active bubble
+      this.drawBubble(ctx, currentDrawX, currentDrawY + hoverY, activeColor, 'normal', BUBBLE_RADIUS);
     }
 
     ctx.restore();
@@ -1106,6 +1401,7 @@ export class GameEngine {
       shotsUsed: this.shotManager.shotsUsed,
       currentBubble: this.shotManager.currentBubble,
       nextBubble: this.shotManager.nextBubble,
+      availableColors: this.getAvailableColors(),
       objectiveDescription: this.objectiveManager.getProgressDescription(),
       isObjectiveCompleted: this.objectiveManager.isCompleted,
       canUndo: this.undoStack.length > 0 && this.state !== GAME_STATES.SHOOTING && this.state !== GAME_STATES.RESOLVING

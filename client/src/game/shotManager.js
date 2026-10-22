@@ -46,6 +46,26 @@ export class ShotManager {
     this.nextBubble = temp;
   }
 
+  // Set current active bubble (Select Bubble)
+  setCurrentBubble(color) {
+    if (!color) return;
+    this.currentBubble = color;
+  }
+
+  // Set next reserve bubble
+  setNextBubble(color) {
+    if (!color) return;
+    this.nextBubble = color;
+  }
+
+  // Cycle current bubble through provided color choices
+  cycleBubble(colors = []) {
+    if (!colors || colors.length === 0) return;
+    const idx = colors.indexOf(this.currentBubble);
+    const nextIdx = (idx + 1) % colors.length;
+    this.currentBubble = colors[nextIdx];
+  }
+
   // Booster: Extra shots
   addExtraShots(count = 5) {
     this.shotsRemaining += count;

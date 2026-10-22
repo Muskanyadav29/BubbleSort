@@ -12,6 +12,7 @@ import LevelComplete from '../components/LevelComplete/LevelComplete';
 import GameOver from '../components/GameOver/GameOver';
 import PauseModal from '../components/PauseModal/PauseModal';
 import Mascot from '../components/Mascot';
+import BubbleSelector from '../components/BubbleSelector/BubbleSelector';
 
 export default function GamePage({ user, onProgressUpdate }) {
   const { levelId } = useParams();
@@ -32,10 +33,12 @@ export default function GamePage({ user, onProgressUpdate }) {
     shotsUsed: 0,
     currentBubble: 'blue',
     nextBubble: 'red',
+    availableColors: ['red', 'blue', 'green', 'yellow'],
     objectiveDescription: 'Loading level...',
     canUndo: false
   });
 
+  const [isBubbleSelectorOpen, setIsBubbleSelectorOpen] = useState(false);
   const [mascotMood, setMascotMood] = useState('happy');
   const [mascotMessage, setMascotMessage] = useState(null);
   const [activeBoosters, setActiveBoosters] = useState({});
@@ -216,6 +219,23 @@ export default function GamePage({ user, onProgressUpdate }) {
     }
   };
 
+  const handleSelectBubble = (color) => {
+    if (engineRef.current) {
+      const ok = engineRef.current.selectBubble(color);
+      if (ok) {
+        setMascotMood('excited');
+        setMascotMessage(`Loaded ${color} bubble!`);
+      }
+    }
+  };
+
+  const handleCycleBubble = () => {
+    if (engineRef.current) {
+      engineRef.current.cycleBubble();
+      setMascotMessage('Cycled active bubble!');
+    }
+  };
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -223,8 +243,18 @@ export default function GamePage({ user, onProgressUpdate }) {
       if (e.code === 'Space') {
         e.preventDefault();
         engineRef.current.shoot();
-      } else if (e.code === 'KeyS' || e.code === 'KeyC') {
+      } else if (e.code === 'KeyS') {
         handleSwap();
+      } else if (e.code === 'KeyC') {
+        handleCycleBubble();
+      } else if (e.code === 'KeyB' || e.code === 'KeyP') {
+        setIsBubbleSelectorOpen(prev => !prev);
+      } else if (e.key >= '1' && e.key <= '9') {
+        const idx = Number(e.key) - 1;
+        const colors = engineState.availableColors || [];
+        if (colors[idx]) {
+          handleSelectBubble(colors[idx]);
+        }
       } else if (e.code === 'KeyR') {
         handleRestart();
       } else if (e.code === 'KeyZ') {
@@ -232,7 +262,9 @@ export default function GamePage({ user, onProgressUpdate }) {
       } else if (e.code === 'KeyH') {
         handleHint();
       } else if (e.code === 'Escape') {
-        if (engineState.gameState === GAME_STATES.PAUSED) {
+        if (isBubbleSelectorOpen) {
+          setIsBubbleSelectorOpen(false);
+        } else if (engineState.gameState === GAME_STATES.PAUSED) {
           engineRef.current.resume();
         } else {
           engineRef.current.pause();
@@ -241,7 +273,7 @@ export default function GamePage({ user, onProgressUpdate }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [engineState.gameState]);
+  }, [engineState.gameState, engineState.availableColors, isBubbleSelectorOpen]);
 
   const handleRestart = () => {
     if (!engineRef.current || !levelConfig) return;
@@ -364,6 +396,51 @@ export default function GamePage({ user, onProgressUpdate }) {
             onTouchEnd={handlePointerUp}
           />
 
+          {/* Floating Quick Action: Change / Select Bubble */}
+          <button
+            onClick={() => {
+              soundEngine.playButtonClick();
+              setIsBubbleSelectorOpen(true);
+            }}
+            title="Change or select different bubble color"
+            style={{
+              position: 'absolute',
+              bottom: '12px',
+              left: '12px',
+              zIndex: 15,
+              background: 'rgba(15, 23, 42, 0.88)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              borderRadius: '9999px',
+              padding: '0.35rem 0.65rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: '#38bdf8',
+              fontSize: '0.72rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.2)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>🎨</span>
+            <span>Change Bubble</span>
+          </button>
+
+          {/* Modal: Bubble Selector / Color Palette */}
+          <BubbleSelector
+            isOpen={isBubbleSelectorOpen}
+            onClose={() => setIsBubbleSelectorOpen(false)}
+            availableColors={engineState.availableColors || []}
+            currentBubble={engineState.currentBubble}
+            nextBubble={engineState.nextBubble}
+            onSelectBubble={handleSelectBubble}
+            onSwap={handleSwap}
+            onCycle={handleCycleBubble}
+          />
+
           {/* Modal: Level Complete */}
           {engineState.gameState === GAME_STATES.LEVEL_COMPLETE && (
             <LevelComplete
@@ -415,7 +492,7 @@ export default function GamePage({ user, onProgressUpdate }) {
           )}
         </div>
 
-        {/* Bottom Control Dock: Undo, Swap, Boosters, Hint */}
+        {/* Bottom Control Dock: Undo, Swap, Select, Boosters, Hint */}
         <BoosterBar
           inventory={inventory}
           onUseBooster={handleUseBooster}
@@ -424,6 +501,7 @@ export default function GamePage({ user, onProgressUpdate }) {
           onUndo={handleUndo}
           onHint={handleHint}
           onSwap={handleSwap}
+          onOpenBubbleSelector={() => setIsBubbleSelectorOpen(true)}
           nextBubble={engineState.nextBubble || 'blue'}
         />
 

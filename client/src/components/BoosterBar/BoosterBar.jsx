@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crosshair, Bomb, Sparkles, PlusCircle, Shuffle, RotateCcw, Lightbulb } from 'lucide-react';
+import { Crosshair, Bomb, Sparkles, PlusCircle, Shuffle, RotateCcw, Lightbulb, ArrowLeftRight, Palette } from 'lucide-react';
 import { soundEngine } from '../../utils/soundEngine';
 import { BUBBLE_THEMES } from '../../config/gameConfig';
 
@@ -11,6 +11,7 @@ export default function BoosterBar({
   onUndo,
   onHint,
   onSwap,
+  onOpenBubbleSelector,
   nextBubble = 'blue'
 }) {
   const nextTheme = BUBBLE_THEMES[nextBubble] || BUBBLE_THEMES.blue;
@@ -102,13 +103,13 @@ export default function BoosterBar({
         <span style={{ fontSize: '0.62rem', fontWeight: '700' }}>Undo</span>
       </button>
 
-      {/* Swap Bubble Button */}
+      {/* Swap Bubble Button (matching on-canvas curved arrows) */}
       <button
         onClick={() => {
-          soundEngine.playButtonClick();
+          soundEngine.playSwap();
           if (onSwap) onSwap();
         }}
-        title="Swap active bubble with next (Key S or C)"
+        title="Swap active bubble with reserve (Key S or C, or tap the arrows on the shooter)"
         style={{
           flex: '0 0 auto',
           display: 'flex',
@@ -118,16 +119,17 @@ export default function BoosterBar({
           gap: '1px',
           padding: '0.3rem 0.45rem',
           borderRadius: '0.55rem',
-          border: '1.5px solid rgba(245, 158, 11, 0.4)',
-          background: 'rgba(245, 158, 11, 0.12)',
-          color: '#fbbf24',
+          border: '1.5px solid rgba(16, 208, 94, 0.45)',
+          background: 'rgba(16, 208, 94, 0.12)',
+          color: '#34d399',
           cursor: 'pointer',
           minWidth: '44px',
-          position: 'relative'
+          position: 'relative',
+          transition: 'all 0.15s ease'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: '900', lineHeight: 1 }}>⇄</span>
+          <ArrowLeftRight size={13} color="#10D05E" />
           {/* Mini Next Bubble Preview */}
           <div style={{
             width: '13px',
@@ -135,10 +137,39 @@ export default function BoosterBar({
             borderRadius: '50%',
             background: `radial-gradient(circle at 35% 35%, ${nextTheme.light}, ${nextTheme.main} 60%, ${nextTheme.dark} 100%)`,
             border: `1px solid ${nextTheme.rim}`,
-            boxShadow: `0 0 5px ${nextTheme.glow || 'rgba(0,0,0,0.5)'}`
+            boxShadow: `0 0 6px ${nextTheme.glow || 'rgba(0,0,0,0.5)'}`
           }} />
         </div>
-        <span style={{ fontSize: '0.62rem', fontWeight: '700' }}>Swap</span>
+        <span style={{ fontSize: '0.62rem', fontWeight: '800' }}>Swap</span>
+      </button>
+
+      {/* Select / Change Bubble Button */}
+      <button
+        onClick={() => {
+          soundEngine.playButtonClick();
+          if (onOpenBubbleSelector) onOpenBubbleSelector();
+        }}
+        title="Change or select different bubble color"
+        style={{
+          flex: '0 0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1px',
+          padding: '0.3rem 0.45rem',
+          borderRadius: '0.55rem',
+          border: '1.5px solid rgba(56, 189, 248, 0.45)',
+          background: 'rgba(56, 189, 248, 0.12)',
+          color: '#38bdf8',
+          cursor: 'pointer',
+          minWidth: '44px',
+          position: 'relative',
+          transition: 'all 0.15s ease'
+        }}
+      >
+        <Palette size={14} color="#38bdf8" />
+        <span style={{ fontSize: '0.62rem', fontWeight: '800' }}>Select</span>
       </button>
 
       {/* Divider */}
