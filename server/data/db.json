@@ -144,6 +144,22 @@
       "boostersUsed": [],
       "completed": false,
       "status": "active"
+    },
+    {
+      "sessionId": "sess_1792784721698_55wjpy",
+      "userId": "guest_1792784721698",
+      "levelId": 2,
+      "sessionToken": "01ce764d73b34a06c5dbf154501b77f70fef00f770d70137",
+      "startedAt": 1792784721698,
+      "completedAt": null,
+      "shotsUsed": 0,
+      "bubblesPopped": 0,
+      "score": 0,
+      "stars": 0,
+      "bestCombo": 0,
+      "boostersUsed": [],
+      "completed": false,
+      "status": "active"
     }
   ],
   "achievements": [
