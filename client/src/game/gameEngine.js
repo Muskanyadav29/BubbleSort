@@ -233,18 +233,22 @@ export class GameEngine {
 
   isSwapZone(x, y) {
     const baseX = this.launcherPos.x;
-    const baseY = this.launcherPos.y + 26;
-    const nextX = baseX + 28;
-    const nextY = baseY + 14;
+    const baseY = this.launcherPos.y;
 
-    // 1. Next bubble dock area
-    if (Math.hypot(x - nextX, y - nextY) <= 26) return true;
-    // 2. Circular pedestal area
-    if (Math.hypot(x - baseX, y - baseY) <= 34 && y > this.launcherPos.y + 10) return true;
-    // 3. Right curved swap arrow zone (as marked in diagram)
-    if (Math.hypot(x - (baseX + 34), y - (baseY - 4)) <= 26) return true;
-    // 4. Left curved swap arrow zone (as marked in diagram)
-    if (Math.hypot(x - (baseX - 32), y - (baseY + 12)) <= 26) return true;
+    // 1. Center of active bubble thrower / loaded bubble:
+    if (Math.hypot(x - baseX, y - baseY) <= 38) return true;
+
+    // 2. Circular pedestal area and shooter base:
+    if (Math.hypot(x - baseX, y - (baseY + 26)) <= 40) return true;
+
+    // 3. Next bubble dock area
+    const nextX = baseX + 28;
+    const nextY = baseY + 40;
+    if (Math.hypot(x - nextX, y - nextY) <= 30) return true;
+
+    // 4. Right & left swap curved arrows
+    if (Math.hypot(x - (baseX + 34), y - (baseY + 22)) <= 30) return true;
+    if (Math.hypot(x - (baseX - 32), y - (baseY + 26)) <= 30) return true;
 
     return false;
   }
@@ -536,17 +540,32 @@ export class GameEngine {
       // Check for trapped rescues touching the match
       this.checkTrappedRescues();
 
-      // Check Floating Bubbles (Item 20)
+      // Check Floating Bubbles
       const floating = findFloatingBubbles(this.board);
       if (floating.length > 0) {
+        let droppedCount = 0;
+        let floatingRescues = 0;
         for (const fl of floating) {
           const center = getCellCenter(fl.r, fl.c);
           this.board[fl.r][fl.c] = null;
-          this.spawnFloatingDrop(center.x, center.y, fl.bubble);
+          if (fl.bubble.type === 'rescue') {
+            floatingRescues++;
+            this.spawnRescueCelebration(center.x, center.y);
+          } else {
+            droppedCount++;
+            this.spawnFloatingDrop(center.x, center.y, fl.bubble);
+          }
         }
-        const dropBonus = this.scoreManager.registerFloatingDrops(floating.length);
-        soundEngine.playFallingBubble();
-        this.addFloatingText(`DROP +${dropBonus}!`, BOARD_WIDTH / 2, 240, '#1E90FF');
+        if (floatingRescues > 0) {
+          this.scoreManager.registerRescue(floatingRescues);
+          soundEngine.playRescue();
+          this.addFloatingText('RESCUED! 🎉', BOARD_WIDTH / 2, 180, '#FF9FF3');
+        }
+        if (droppedCount > 0) {
+          const dropBonus = this.scoreManager.registerFloatingDrops(droppedCount);
+          soundEngine.playFallingBubble();
+          this.addFloatingText(`DROP +${dropBonus}!`, BOARD_WIDTH / 2, 240, '#1E90FF');
+        }
       }
     } else {
       // Shot failed to match: reset combo streak
@@ -558,19 +577,33 @@ export class GameEngine {
 
   checkTrappedRescues() {
     let rescuedCount = 0;
+
+    // Check how many normal shootable bubbles exist on board
+    let normalCount = 0;
     for (let r = 0; r < this.board.length; r++) {
-      for (let c = 0; c < this.board[r].length; c++) {
-        const bubble = this.board[r][c];
-        if (bubble && bubble.type === 'rescue') {
-          // Check if isolated or rescued
-          const neighbors = getCellCenter(r, c);
-          // When freed, celebrate rescue!
-          const floating = findFloatingBubbles(this.board);
-          const isFloating = floating.some(f => f.r === r && f.c === c);
-          if (isFloating || this.isRescueExposed(r, c)) {
-            this.board[r][c] = null;
-            rescuedCount++;
-            this.spawnRescueCelebration(neighbors.x, neighbors.y);
+      if (this.board[r]) {
+        for (let c = 0; c < this.board[r].length; c++) {
+          if (this.board[r][c] && this.board[r][c].type === 'normal') {
+            normalCount++;
+          }
+        }
+      }
+    }
+
+    const floating = findFloatingBubbles(this.board);
+
+    for (let r = 0; r < this.board.length; r++) {
+      if (this.board[r]) {
+        for (let c = 0; c < this.board[r].length; c++) {
+          const bubble = this.board[r][c];
+          if (bubble && bubble.type === 'rescue') {
+            const center = getCellCenter(r, c);
+            const isFloating = floating.some(f => f.r === r && f.c === c);
+            if (isFloating || this.isRescueExposed(r, c) || normalCount === 0) {
+              this.board[r][c] = null;
+              rescuedCount++;
+              this.spawnRescueCelebration(center.x, center.y);
+            }
           }
         }
       }
@@ -584,18 +617,30 @@ export class GameEngine {
   }
 
   isRescueExposed(r, c) {
-    // If it has at least 3 free sides
-    let emptyCount = 0;
-    const nbrs = [{ r: r - 1, c }, { r: r + 1, c }, { r, c: c - 1 }, { r, c: c + 1 }];
+    const nbrs = getHexNeighbors(r, c, this.board.length);
+    let occupied = 0;
     for (const n of nbrs) {
-      if (!this.board[n.r] || !this.board[n.r][n.c]) emptyCount++;
+      if (this.board[n.r] && this.board[n.r][n.c]) occupied++;
     }
-    return emptyCount >= 3;
+    // Freed if fewer than 4 adjacent bubbles (has breathing room)
+    return occupied <= 3;
   }
 
-  finalizeTurn() {
-    // Check objective
-    const completed = this.objectiveManager.checkStatus({
+  isBoardCleared() {
+    if (!this.board || !Array.isArray(this.board)) return true;
+    for (let r = 0; r < this.board.length; r++) {
+      if (this.board[r] && Array.isArray(this.board[r])) {
+        for (let c = 0; c < this.board[r].length; c++) {
+          if (this.board[r][c]) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  checkLevelWin() {
+    const isCleared = this.isBoardCleared();
+    const completed = isCleared || this.objectiveManager.checkStatus({
       board: this.board,
       poppedColors: this.poppedColors,
       droppedCount: this.scoreManager.floatingDroppedCount,
@@ -607,17 +652,25 @@ export class GameEngine {
     if (completed) {
       soundEngine.playLevelComplete();
       this.setState(GAME_STATES.LEVEL_COMPLETE);
+      return true;
+    }
+    return false;
+  }
+
+  finalizeTurn() {
+    // 1. Check if objective completed or all bubbles cleared: WIN ALWAYS TAKES PRECEDENCE
+    if (this.checkLevelWin()) {
       return;
     }
 
-    // Check failure condition: no shots remaining
+    // 2. Check failure condition: no shots remaining
     if (this.shotManager.shotsRemaining <= 0) {
       soundEngine.playLevelFailed();
       this.setState(GAME_STATES.LEVEL_FAILED);
       return;
     }
 
-    // Check if only 1 bubble is left on the canvas
+    // Check if only 1 bubble is left on the canvas for final target assist
     this.checkSingleBubbleRule();
 
     // Ready for next shot

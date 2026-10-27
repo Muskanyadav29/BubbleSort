@@ -421,10 +421,20 @@ export default function GamePage({ user, onProgressUpdate }) {
           {/* Modal: Game Over */}
           {engineState.gameState === GAME_STATES.LEVEL_FAILED && (
             <GameOver
-              extraShotAvailable={inventory.extraShot > 0}
+              extraShotAvailable={true}
               onUseExtraShotBooster={() => {
-                handleUseBooster('extraShot');
-                engineRef.current?.setState(GAME_STATES.READY);
+                // If the board was already cleared or objective fulfilled, complete level!
+                if (engineRef.current?.checkLevelWin?.() || engineRef.current?.isBoardCleared?.()) {
+                  return;
+                }
+                if (inventory.extraShot > 0) {
+                  setInventory(prev => ({ ...prev, extraShot: prev.extraShot - 1 }));
+                }
+                engineRef.current?.applyBooster('extraShot');
+                // Check once more in case shots or state triggered clear
+                if (!engineRef.current?.checkLevelWin?.()) {
+                  engineRef.current?.setState(GAME_STATES.READY);
+                }
               }}
               onRetry={handleRestart}
               onLevelSelect={() => navigate('/levels')}

@@ -1,91 +1,78 @@
 import React from 'react';
 
 export default function Mascot({ mood = 'happy', message = null, size = 80 }) {
-  // Moods: happy, thinking, celebrate, worried, cheering
-  const getFace = () => {
+  // Mood badge / glow
+  const getGlowColor = () => {
     switch (mood) {
-      case 'celebrate':
-        return (
-          <>
-            {/* Joyful curved eyes */}
-            <path d="M 28 42 Q 35 32 42 42" stroke="#1e1b4b" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <path d="M 58 42 Q 65 32 72 42" stroke="#1e1b4b" strokeWidth="3" fill="none" strokeLinecap="round" />
-            {/* Big happy open mouth */}
-            <path d="M 40 54 Q 50 68 60 54 Z" fill="#ec4899" stroke="#1e1b4b" strokeWidth="2" />
-            {/* Blushing cheeks */}
-            <ellipse cx="26" cy="48" rx="5" ry="3" fill="#f43f5e" opacity="0.6" />
-            <ellipse cx="74" cy="48" rx="5" ry="3" fill="#f43f5e" opacity="0.6" />
-          </>
-        );
-      case 'worried':
-        return (
-          <>
-            {/* Worried eyes */}
-            <ellipse cx="35" cy="42" rx="4" ry="6" fill="#1e1b4b" />
-            <ellipse cx="65" cy="42" rx="4" ry="6" fill="#1e1b4b" />
-            {/* Nervous mouth */}
-            <path d="M 42 58 Q 50 52 58 58" stroke="#1e1b4b" strokeWidth="3" fill="none" strokeLinecap="round" />
-          </>
-        );
-      case 'thinking':
-        return (
-          <>
-            {/* Pondering wink/glance */}
-            <ellipse cx="36" cy="40" rx="5" ry="5" fill="#1e1b4b" />
-            <path d="M 58 42 L 70 38" stroke="#1e1b4b" strokeWidth="3" strokeLinecap="round" />
-            {/* Curious little mouth */}
-            <circle cx="50" cy="56" r="3" fill="#1e1b4b" />
-          </>
-        );
-      default: // Happy
-        return (
-          <>
-            <circle cx="36" cy="42" r="5" fill="#1e1b4b" />
-            <circle cx="38" cy="40" r="1.8" fill="#ffffff" />
-            <circle cx="64" cy="42" r="5" fill="#1e1b4b" />
-            <circle cx="66" cy="40" r="1.8" fill="#ffffff" />
-            {/* Cute smile */}
-            <path d="M 42 52 Q 50 60 58 52" stroke="#1e1b4b" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <ellipse cx="28" cy="48" rx="4" ry="2.5" fill="#f43f5e" opacity="0.5" />
-            <ellipse cx="72" cy="48" rx="4" ry="2.5" fill="#f43f5e" opacity="0.5" />
-          </>
-        );
+      case 'celebrate': return '#10b981';
+      case 'cheering': return '#f59e0b';
+      case 'worried': return '#ef4444';
+      case 'thinking': return '#8b5cf6';
+      default: return '#0ea5e9';
+    }
+  };
+
+  const getMoodBadge = () => {
+    switch (mood) {
+      case 'celebrate': return '✨';
+      case 'cheering': return '🔥';
+      case 'worried': return '⚡';
+      case 'thinking': return '💡';
+      default: return '⭐';
     }
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
-      <div className="animate-float" style={{ width: `${size}px`, height: `${size}px`, flexShrink: 0 }}>
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <defs>
-            <radialGradient id="spriteGrad" cx="40%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#67e8f9" />
-              <stop offset="70%" stopColor="#06b6d4" />
-              <stop offset="100%" stopColor="#0891b2" />
-            </radialGradient>
-            <radialGradient id="wingGrad" cx="30%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#fdf4ff" />
-              <stop offset="100%" stopColor="#f472b6" />
-            </radialGradient>
-          </defs>
+      <div className="animate-float" style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        flexShrink: 0,
+        position: 'relative'
+      }}>
+        {/* Glow halo */}
+        <div style={{
+          position: 'absolute',
+          inset: -3,
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${getGlowColor()} 0%, transparent 70%)`,
+          opacity: 0.65,
+          filter: 'blur(4px)'
+        }} />
+        
+        {/* 3D Generated Mascot Image */}
+        <img
+          src="/assets/mascot_avatar.jpg"
+          alt="Adventure Mascot"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: `2.5px solid ${getGlowColor()}`,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+            display: 'block'
+          }}
+        />
 
-          {/* Little Star Sprite Wings */}
-          <path d="M 18 35 Q 2 20 15 50 Q 18 42 22 40 Z" fill="url(#wingGrad)" opacity="0.85" />
-          <path d="M 82 35 Q 98 20 85 50 Q 82 42 78 40 Z" fill="url(#wingGrad)" opacity="0.85" />
-
-          {/* Antenna / Star tip */}
-          <path d="M 50 25 Q 50 12 56 10" stroke="#0891b2" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-          <circle cx="58" cy="9" r="6" fill="#fde047" stroke="#eab308" strokeWidth="1.5" />
-
-          {/* Soft round body */}
-          <circle cx="50" cy="50" r="34" fill="url(#spriteGrad)" stroke="#164e63" strokeWidth="2" />
-
-          {/* Highlights */}
-          <ellipse cx="40" cy="28" rx="12" ry="6" fill="#ffffff" opacity="0.4" />
-
-          {/* Dynamic Face */}
-          {getFace()}
-        </svg>
+        {/* Small mood badge tag */}
+        <div style={{
+          position: 'absolute',
+          bottom: -2,
+          right: -2,
+          width: '22px',
+          height: '22px',
+          borderRadius: '50%',
+          background: getGlowColor(),
+          border: '1.5px solid #ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '11px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.4)'
+        }}>
+          {getMoodBadge()}
+        </div>
       </div>
 
       {message && (
@@ -97,7 +84,9 @@ export default function Mascot({ mood = 'happy', message = null, size = 80 }) {
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           border: '1px solid rgba(56, 189, 248, 0.3)',
           background: 'rgba(15, 23, 42, 0.85)',
-          color: '#f8fafc'
+          color: '#f8fafc',
+          lineHeight: '1.35',
+          fontWeight: '600'
         }}>
           {message}
         </div>

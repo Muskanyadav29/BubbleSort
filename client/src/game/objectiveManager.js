@@ -19,47 +19,58 @@ export class ObjectiveManager {
   checkStatus({ board, poppedColors = {}, droppedCount = 0, rescuedCount = 0, score = 0, combo = 0 }) {
     if (this.isCompleted) return true;
 
+    // Count how many total bubbles remain on the board
+    let bubblesLeft = 0;
+    if (board && Array.isArray(board)) {
+      for (const row of board) {
+        if (row && Array.isArray(row)) {
+          for (const cell of row) {
+            if (cell) bubblesLeft++;
+          }
+        }
+      }
+    }
+
     const type = this.config.type;
 
     if (type === 'clear_all') {
-      // Complete if no bubbles remain on the board
-      let bubblesLeft = 0;
-      for (const row of board) {
-        for (const cell of row) {
-          if (cell) bubblesLeft++;
-        }
-      }
       this.progress = Math.max(0, bubblesLeft);
       if (bubblesLeft === 0) {
         this.isCompleted = true;
       }
     } else if (type === 'rescue') {
       this.progress = rescuedCount;
-      if (rescuedCount >= this.target) {
+      if (rescuedCount >= this.target || bubblesLeft === 0) {
+        this.progress = Math.max(rescuedCount, this.target);
         this.isCompleted = true;
       }
     } else if (type === 'drop_count') {
       this.progress = droppedCount;
-      if (droppedCount >= this.target) {
+      if (droppedCount >= this.target || bubblesLeft === 0) {
         this.isCompleted = true;
       }
     } else if (type === 'color_hunt') {
       const color = this.config.color;
       const popped = poppedColors[color] || 0;
       this.progress = popped;
-      if (popped >= this.target) {
+      if (popped >= this.target || bubblesLeft === 0) {
         this.isCompleted = true;
       }
     } else if (type === 'combo') {
       this.progress = combo;
-      if (combo >= this.target) {
+      if (combo >= this.target || bubblesLeft === 0) {
         this.isCompleted = true;
       }
     } else if (type === 'score') {
       this.progress = score;
-      if (score >= this.target) {
+      if (score >= this.target || bubblesLeft === 0) {
         this.isCompleted = true;
       }
+    }
+
+    // Universal rule: If all bubbles on canvas have been cleared, the board is solved and level won!
+    if (bubblesLeft === 0) {
+      this.isCompleted = true;
     }
 
     return this.isCompleted;
