@@ -77,26 +77,26 @@ export class GameEngine {
     this.swapAnimation = null;
 
     // Atmospheric twinkling celestial background stars
-    this.backgroundStars = Array.from({ length: 48 }, () => ({
+    this.backgroundStars = Array.from({ length: 64 }, () => ({
       x: Math.random() * BOARD_WIDTH,
-      y: Math.random() * (BOARD_HEIGHT - 120),
-      radius: 0.5 + Math.random() * 1.4,
-      baseAlpha: 0.2 + Math.random() * 0.5,
-      speed: 1.0 + Math.random() * 2.5,
+      y: Math.random() * (BOARD_HEIGHT - 100),
+      radius: 0.6 + Math.random() * 1.5,
+      baseAlpha: 0.25 + Math.random() * 0.55,
+      speed: 1.2 + Math.random() * 2.8,
       phase: Math.random() * Math.PI * 2,
       color: Math.random() > 0.4 ? '#ffffff' : (Math.random() > 0.5 ? '#93c5fd' : '#fef08a')
     }));
 
     // Floating bioluminescent fireflies rising through the night jungle
-    this.fireflies = Array.from({ length: 14 }, () => ({
+    this.fireflies = Array.from({ length: 20 }, () => ({
       x: Math.random() * BOARD_WIDTH,
-      y: 360 + Math.random() * 230,
-      radius: 1.1 + Math.random() * 1.6,
-      speedY: 10 + Math.random() * 16,
-      wobbleSpeed: 1.5 + Math.random() * 2.0,
-      wobbleAmp: 14 + Math.random() * 18,
+      y: 320 + Math.random() * 280,
+      radius: 1.3 + Math.random() * 1.8,
+      speedY: 12 + Math.random() * 18,
+      wobbleSpeed: 1.6 + Math.random() * 2.2,
+      wobbleAmp: 16 + Math.random() * 20,
       phase: Math.random() * Math.PI * 2,
-      alpha: 0.35 + Math.random() * 0.55
+      alpha: 0.4 + Math.random() * 0.55
     }));
 
     // Popped statistics
@@ -825,18 +825,18 @@ export class GameEngine {
     // 2. Cosmic nebula & animated shimmering aurora waves
     const nowSec = performance.now() / 1000;
 
-    const nebulaGrad = ctx.createRadialGradient(BOARD_WIDTH / 2, 220, 20, BOARD_WIDTH / 2, 220, 240);
-    nebulaGrad.addColorStop(0, 'rgba(56, 189, 248, 0.22)');
-    nebulaGrad.addColorStop(0.5, 'rgba(147, 51, 234, 0.14)');
+    const nebulaGrad = ctx.createRadialGradient(BOARD_WIDTH / 2, 220, 20, BOARD_WIDTH / 2, 220, 260);
+    nebulaGrad.addColorStop(0, 'rgba(56, 189, 248, 0.28)');
+    nebulaGrad.addColorStop(0.5, 'rgba(147, 51, 234, 0.20)');
     nebulaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = nebulaGrad;
-    ctx.fillRect(0, 40, BOARD_WIDTH, 360);
+    ctx.fillRect(0, 40, BOARD_WIDTH, 380);
 
     // Glowing animated aurora wave 1 (cyan/teal light curtain)
     ctx.save();
-    const auroraGrad1 = ctx.createLinearGradient(0, 60, 0, 280);
+    const auroraGrad1 = ctx.createLinearGradient(0, 50, 0, 290);
     auroraGrad1.addColorStop(0, 'rgba(6, 182, 212, 0)');
-    auroraGrad1.addColorStop(0.5, 'rgba(56, 189, 248, 0.16)');
+    auroraGrad1.addColorStop(0.5, 'rgba(56, 189, 248, 0.25)');
     auroraGrad1.addColorStop(1, 'rgba(14, 165, 233, 0)');
     ctx.fillStyle = auroraGrad1;
     ctx.beginPath();
@@ -846,15 +846,15 @@ export class GameEngine {
       270, 140 + Math.sin(nowSec * 0.9) * 22,
       BOARD_WIDTH, 95 + Math.cos(nowSec * 1.2) * 16
     );
-    ctx.lineTo(BOARD_WIDTH, 280);
-    ctx.lineTo(0, 280);
+    ctx.lineTo(BOARD_WIDTH, 290);
+    ctx.lineTo(0, 290);
     ctx.closePath();
     ctx.fill();
 
     // Glowing animated aurora wave 2 (purple/violet light curtain)
-    const auroraGrad2 = ctx.createLinearGradient(0, 80, 0, 320);
+    const auroraGrad2 = ctx.createLinearGradient(0, 70, 0, 330);
     auroraGrad2.addColorStop(0, 'rgba(168, 85, 247, 0)');
-    auroraGrad2.addColorStop(0.5, 'rgba(139, 92, 246, 0.12)');
+    auroraGrad2.addColorStop(0.5, 'rgba(139, 92, 246, 0.22)');
     auroraGrad2.addColorStop(1, 'rgba(126, 34, 206, 0)');
     ctx.fillStyle = auroraGrad2;
     ctx.beginPath();
@@ -864,8 +864,8 @@ export class GameEngine {
       250, 100 + Math.cos(nowSec * 1.1) * 18,
       BOARD_WIDTH, 150 + Math.sin(nowSec * 0.9) * 20
     );
-    ctx.lineTo(BOARD_WIDTH, 320);
-    ctx.lineTo(0, 320);
+    ctx.lineTo(BOARD_WIDTH, 330);
+    ctx.lineTo(0, 330);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1366,15 +1366,18 @@ export class GameEngine {
       }
     }
 
-    // 9. Floating Pop Texts
+    // 9. Floating Pop & Combo Texts with Bold Neon Outlines
     for (const ft of this.floatingTexts) {
       ctx.save();
-      ctx.globalAlpha = ft.opacity;
-      ctx.font = 'bold 18px "Inter", sans-serif';
+      ctx.globalAlpha = Math.max(0, ft.opacity);
+      ctx.font = '900 20px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#020617';
+      ctx.strokeText(ft.text, ft.x, ft.y);
       ctx.fillStyle = ft.color;
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 6;
+      ctx.shadowColor = ft.color;
+      ctx.shadowBlur = 10;
       ctx.fillText(ft.text, ft.x, ft.y);
       ctx.restore();
     }
