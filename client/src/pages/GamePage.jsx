@@ -377,10 +377,13 @@ export default function GamePage({ user, onProgressUpdate }) {
             width={400}
             height={620}
             style={{
-              width: '100%',
-              height: '100%',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              aspectRatio: '400 / 620',
+              objectFit: 'contain',
               display: 'block',
-              cursor: 'crosshair'
+              cursor: 'crosshair',
+              filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.6))'
             }}
             onMouseDown={handlePointerMove}
             onMouseMove={handlePointerMove}

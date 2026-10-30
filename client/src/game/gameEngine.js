@@ -446,10 +446,16 @@ export class GameEngine {
     // 3. Update Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.life -= dt;
-      p.size = Math.max(0, p.size - p.shrink * dt);
+      if (p.isRing) {
+        p.size += (p.expandRate || 100) * dt;
+        p.life -= dt;
+      } else {
+        if (p.gravity) p.vy += p.gravity * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        p.size = Math.max(0, p.size - p.shrink * dt);
+      }
 
       if (p.life <= 0 || p.size <= 0) {
         this.particles.splice(i, 1);
@@ -679,20 +685,36 @@ export class GameEngine {
 
   spawnPopParticles(x, y, colorKey) {
     const theme = BUBBLE_THEMES[colorKey] || BUBBLE_THEMES.blue;
-    for (let i = 0; i < 10; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 60 + Math.random() * 140;
+    // 16 high-energy radiating spark particles with gravity and drag
+    for (let i = 0; i < 16; i++) {
+      const angle = (Math.PI * 2 * i) / 16 + (Math.random() - 0.5) * 0.4;
+      const speed = 75 + Math.random() * 165;
       this.particles.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        size: 4 + Math.random() * 5,
-        shrink: 5,
-        color: Math.random() > 0.4 ? theme.main : theme.light,
-        life: 0.45 + Math.random() * 0.25
+        gravity: 260,
+        size: 3.5 + Math.random() * 4.5,
+        shrink: 4.8,
+        color: Math.random() > 0.4 ? theme.main : (Math.random() > 0.5 ? theme.light : '#ffffff'),
+        life: 0.5 + Math.random() * 0.25
       });
     }
+    // Expanding luminous shockwave ring
+    this.particles.push({
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      size: 8,
+      maxRadius: 36,
+      expandRate: 110,
+      color: theme.light || '#ffffff',
+      life: 0.28,
+      maxLife: 0.28,
+      isRing: true
+    });
   }
 
   spawnFloatingDrop(x, y, bubble) {
@@ -800,16 +822,55 @@ export class GameEngine {
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
 
-    // 2. Cosmic nebula / atmospheric glow in upper-mid sky
-    const nebulaGrad = ctx.createRadialGradient(BOARD_WIDTH / 2, 240, 20, BOARD_WIDTH / 2, 240, 240);
-    nebulaGrad.addColorStop(0, 'rgba(28, 58, 112, 0.28)');
-    nebulaGrad.addColorStop(0.5, 'rgba(14, 116, 144, 0.12)');
+    // 2. Cosmic nebula & animated shimmering aurora waves
+    const nowSec = performance.now() / 1000;
+
+    const nebulaGrad = ctx.createRadialGradient(BOARD_WIDTH / 2, 220, 20, BOARD_WIDTH / 2, 220, 240);
+    nebulaGrad.addColorStop(0, 'rgba(56, 189, 248, 0.22)');
+    nebulaGrad.addColorStop(0.5, 'rgba(147, 51, 234, 0.14)');
     nebulaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = nebulaGrad;
-    ctx.fillRect(0, 60, BOARD_WIDTH, 380);
+    ctx.fillRect(0, 40, BOARD_WIDTH, 360);
+
+    // Glowing animated aurora wave 1 (cyan/teal light curtain)
+    ctx.save();
+    const auroraGrad1 = ctx.createLinearGradient(0, 60, 0, 280);
+    auroraGrad1.addColorStop(0, 'rgba(6, 182, 212, 0)');
+    auroraGrad1.addColorStop(0.5, 'rgba(56, 189, 248, 0.16)');
+    auroraGrad1.addColorStop(1, 'rgba(14, 165, 233, 0)');
+    ctx.fillStyle = auroraGrad1;
+    ctx.beginPath();
+    ctx.moveTo(0, 100 + Math.sin(nowSec * 1.1) * 16);
+    ctx.bezierCurveTo(
+      110, 80 + Math.cos(nowSec * 1.3) * 20,
+      270, 140 + Math.sin(nowSec * 0.9) * 22,
+      BOARD_WIDTH, 95 + Math.cos(nowSec * 1.2) * 16
+    );
+    ctx.lineTo(BOARD_WIDTH, 280);
+    ctx.lineTo(0, 280);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing animated aurora wave 2 (purple/violet light curtain)
+    const auroraGrad2 = ctx.createLinearGradient(0, 80, 0, 320);
+    auroraGrad2.addColorStop(0, 'rgba(168, 85, 247, 0)');
+    auroraGrad2.addColorStop(0.5, 'rgba(139, 92, 246, 0.12)');
+    auroraGrad2.addColorStop(1, 'rgba(126, 34, 206, 0)');
+    ctx.fillStyle = auroraGrad2;
+    ctx.beginPath();
+    ctx.moveTo(0, 130 + Math.cos(nowSec * 0.8) * 18);
+    ctx.bezierCurveTo(
+      130, 160 + Math.sin(nowSec * 1.2) * 22,
+      250, 100 + Math.cos(nowSec * 1.1) * 18,
+      BOARD_WIDTH, 150 + Math.sin(nowSec * 0.9) * 20
+    );
+    ctx.lineTo(BOARD_WIDTH, 320);
+    ctx.lineTo(0, 320);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 
     // 3. Twinkling celestial stars
-    const nowSec = performance.now() / 1000;
     if (this.backgroundStars) {
       for (const star of this.backgroundStars) {
         const pulse = Math.sin(nowSec * star.speed + star.phase);
@@ -1018,11 +1079,42 @@ export class GameEngine {
     // 1. Enchanted night jungle backdrop (Per reference image, no dinosaur)
     this.drawEnchantedJungleBackground(ctx);
 
-    // Side wall bounce guides
+    // Side crystal wall boundary guides
     ctx.save();
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
-    ctx.fillRect(0, CEILING_Y, 2, BOARD_HEIGHT - CEILING_Y);
-    ctx.fillRect(BOARD_WIDTH - 2, CEILING_Y, 2, BOARD_HEIGHT - CEILING_Y);
+    const nowSec = performance.now() / 1000;
+    // Left boundary pillar
+    const leftPillar = ctx.createLinearGradient(0, 0, 8, 0);
+    leftPillar.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+    leftPillar.addColorStop(0.6, 'rgba(56, 189, 248, 0.12)');
+    leftPillar.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.fillStyle = leftPillar;
+    ctx.fillRect(0, CEILING_Y, 8, BOARD_HEIGHT - CEILING_Y);
+
+    // Right boundary pillar
+    const rightPillar = ctx.createLinearGradient(BOARD_WIDTH, 0, BOARD_WIDTH - 8, 0);
+    rightPillar.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+    rightPillar.addColorStop(0.6, 'rgba(56, 189, 248, 0.12)');
+    rightPillar.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.fillStyle = rightPillar;
+    ctx.fillRect(BOARD_WIDTH - 8, CEILING_Y, 8, BOARD_HEIGHT - CEILING_Y);
+
+    // Inner bright neon line
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(1.5, CEILING_Y);
+    ctx.lineTo(1.5, BOARD_HEIGHT);
+    ctx.moveTo(BOARD_WIDTH - 1.5, CEILING_Y);
+    ctx.lineTo(BOARD_WIDTH - 1.5, BOARD_HEIGHT);
+    ctx.stroke();
+
+    // Runic energy ticks along the borders
+    for (let y = CEILING_Y + 35; y < BOARD_HEIGHT - 60; y += 42) {
+      const tickPulse = 0.35 + 0.45 * Math.sin(nowSec * 2.5 + y * 0.12);
+      ctx.fillStyle = `rgba(56, 189, 248, ${tickPulse})`;
+      ctx.fillRect(0, y, 5, 2.5);
+      ctx.fillRect(BOARD_WIDTH - 5, y, 5, 2.5);
+    }
     ctx.restore();
 
     // 2. Ceiling bar (Arcade stone/golden trim)
@@ -1250,12 +1342,28 @@ export class GameEngine {
     // 7. Launcher Cannon & Base
     this.drawLauncher(ctx);
 
-    // 8. Particles
+    // 8. Particles (Explosion fragments and shockwave rings)
     for (const p of this.particles) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
-      ctx.fill();
+      if (p.isRing) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.strokeStyle = p.color;
+        const progress = Math.max(0, p.life / (p.maxLife || 0.28));
+        ctx.lineWidth = Math.max(1, 3.5 * progress);
+        ctx.globalAlpha = Math.max(0, progress);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, p.size), 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 4;
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     // 9. Floating Pop Texts
@@ -1279,23 +1387,30 @@ export class GameEngine {
     ctx.save();
 
     // 1. Base 3D Sphere with smooth radial gradient (highlight offset towards top-left)
+    // Soft subtle ambient glow under bubble
+    ctx.shadowColor = theme.glow || 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 5;
+
     const grad = ctx.createRadialGradient(
-      x - r * 0.3,
+      x - r * 0.32,
       y - r * 0.35,
-      r * 0.1,
+      r * 0.08,
       x,
       y,
       r
     );
     grad.addColorStop(0, theme.light);
-    grad.addColorStop(0.35, theme.main);
-    grad.addColorStop(0.82, theme.dark || theme.main);
+    grad.addColorStop(0.32, theme.main);
+    grad.addColorStop(0.78, theme.dark || theme.main);
     grad.addColorStop(1.0, theme.rim || theme.dark);
 
     ctx.beginPath();
     ctx.arc(x, y, r - 0.5, 0, Math.PI * 2);
     ctx.fillStyle = grad;
     ctx.fill();
+
+    // Reset shadow for crisp overlays
+    ctx.shadowBlur = 0;
 
     // 2. Defined, crisp outer edge contour
     ctx.lineWidth = 1.6;
@@ -1305,8 +1420,8 @@ export class GameEngine {
     // 3. Subtle bottom-right inner bounce light (translucent glass/marble volume)
     ctx.beginPath();
     ctx.arc(x, y, r - 2.5, 0.22 * Math.PI, 0.82 * Math.PI);
-    ctx.strokeStyle = theme.innerRim || 'rgba(255, 255, 255, 0.4)';
-    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = theme.innerRim || 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 2.0;
     ctx.lineCap = 'round';
     ctx.stroke();
 
@@ -1321,13 +1436,13 @@ export class GameEngine {
       0,
       Math.PI * 2
     );
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.86)';
     ctx.fill();
 
     // 5. Secondary micro specular shine dot
     ctx.beginPath();
-    ctx.arc(x - r * 0.08, y - r * 0.45, r * 0.09, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.arc(x - r * 0.06, y - r * 0.46, r * 0.1, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
     ctx.fill();
 
     // Special items
@@ -1336,6 +1451,14 @@ export class GameEngine {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('💣', x, y + 1);
+      // Pulsing animated fuse spark
+      const sparkPulse = 0.5 + 0.5 * Math.sin(Date.now() / 150);
+      ctx.beginPath();
+      ctx.arc(x + r * 0.45, y - r * 0.45, 2.5 * sparkPulse, 0, Math.PI * 2);
+      ctx.fillStyle = '#fef08a';
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 6;
+      ctx.fill();
     } else if (type === 'rainbow' || colorKey === 'rainbow') {
       ctx.font = `bold ${Math.round(r * 0.75)}px sans-serif`;
       ctx.textAlign = 'center';
