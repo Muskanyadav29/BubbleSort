@@ -7,49 +7,18 @@ import {
   Lock,
   Star,
   Play,
-  Sparkles,
-  Home,
-  Volume2,
-  VolumeX,
   Settings,
+  VolumeX,
   Heart,
   Plus,
   Trophy,
   ChevronLeft,
   ChevronRight,
-  Gift,
   X,
-  Award,
   Clock,
-  Compass,
-  Zap
+  MapPin
 } from 'lucide-react';
 import { soundEngine } from '../utils/soundEngine';
-
-// Build a smooth cubic Bezier path through an array of node coordinates
-function buildSvgCurve(nodes, width = 800, height = 2000) {
-  if (!nodes || nodes.length < 2) return '';
-  const pts = nodes.map(n => ({
-    x: (n.x / 100) * width,
-    y: (n.y / 100) * height
-  }));
-
-  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i === 0 ? 0 : i - 1];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
-
-    const cp1x = p1.x + (p2.x - p0.x) / 5;
-    const cp1y = p1.y + (p2.y - p0.y) / 5;
-    const cp2x = p2.x - (p3.x - p1.x) / 5;
-    const cp2y = p2.y - (p3.y - p1.y) / 5;
-
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-  return d;
-}
 
 export default function LevelSelectPage({ user }) {
   const [levels, setLevels] = useState([]);
@@ -63,7 +32,7 @@ export default function LevelSelectPage({ user }) {
   const scrollContainerRef = useRef(null);
   const navigate = useNavigate();
 
-  // Load level progress
+  // Load player progression
   useEffect(() => {
     async function load() {
       const list = await gameService.fetchLevels();
@@ -95,7 +64,7 @@ export default function LevelSelectPage({ user }) {
   // Highest unlocked level overall
   const highestUnlocked = Math.max(...Array.from(unlockedSet), 1);
 
-  // Automatically switch activeRealm to where player's highest unlocked level is
+  // Auto-switch realm on mount according to highest unlocked level
   useEffect(() => {
     if (highestUnlocked >= 41) {
       setActiveRealm(3);
@@ -112,7 +81,7 @@ export default function LevelSelectPage({ user }) {
   // Next Milestone Level Calculation
   const nextMilestone = Math.min(60, Math.ceil(highestUnlocked / 5) * 5 || 5);
 
-  // Realm configurations
+  // Realm configurations (Using full-resolution 768x1376 roadmaps)
   const REALMS = [
     {
       id: 1,
@@ -120,9 +89,9 @@ export default function LevelSelectPage({ user }) {
       range: '(1-20)',
       minLevel: 1,
       maxLevel: 20,
+      bg: '/assets/sky_islands_roadmap.jpg',
       thumb: '/assets/sky_islands_roadmap.jpg',
       themeColor: '#38bdf8',
-      roadGrad: ['#38bdf8', '#0284c7'],
       glowColor: 'rgba(56, 189, 248, 0.45)'
     },
     {
@@ -131,9 +100,9 @@ export default function LevelSelectPage({ user }) {
       range: '(21-40)',
       minLevel: 21,
       maxLevel: 40,
+      bg: '/assets/desert_realm_roadmap.jpg',
       thumb: '/assets/realm_desert_thumb.jpg',
       themeColor: '#f59e0b',
-      roadGrad: ['#fde68a', '#d97706'],
       glowColor: 'rgba(245, 158, 11, 0.45)'
     },
     {
@@ -142,83 +111,83 @@ export default function LevelSelectPage({ user }) {
       range: '(41-60)',
       minLevel: 41,
       maxLevel: 60,
-      thumb: '/assets/frost_peaks_roadmap.jpg',
+      bg: '/assets/frost_peaks_roadmap.jpg',
+      thumb: '/assets/frost_peaks_thumb.jpg',
       themeColor: '#7dd3fc',
-      roadGrad: ['#e0f2fe', '#0284c7'],
       glowColor: 'rgba(125, 211, 252, 0.45)'
     }
   ];
 
-  // 1. Sky Islands (Levels 1-20) - Generous vertical spacing (~95px apart)
+  // 1. Sky Islands (Levels 1-20) - 100% Precise alignment with painted cobblestones on sky_islands_roadmap.jpg
   const SKY_ISLANDS_NODES = [
-    { level: 1,  x: 48, y: 94, name: 'Meadow Rise' },
-    { level: 2,  x: 64, y: 89 },
-    { level: 3,  x: 74, y: 84 },
-    { level: 4,  x: 62, y: 79 },
-    { level: 5,  x: 40, y: 75, milestone: true, name: 'Sunstone Altar' },
-    { level: 6,  x: 26, y: 70 },
-    { level: 7,  x: 34, y: 65 },
-    { level: 8,  x: 56, y: 61 },
-    { level: 9,  x: 74, y: 56 },
-    { level: 10, x: 64, y: 51, milestone: true, name: 'Windmill Spire' },
-    { level: 11, x: 42, y: 47 },
-    { level: 12, x: 26, y: 42 },
-    { level: 13, x: 34, y: 37 },
-    { level: 14, x: 56, y: 32 },
-    { level: 15, x: 72, y: 28, milestone: true, name: 'Cloud Haven' },
-    { level: 16, x: 62, y: 23 },
-    { level: 17, x: 42, y: 19 },
-    { level: 18, x: 28, y: 14 },
-    { level: 19, x: 44, y: 10 },
-    { level: 20, x: 58, y: 5, isCastle: true, milestone: true, name: 'Sky Citadel' }
+    { level: 1,  x: 41, y: 95, name: 'Island Meadow' },
+    { level: 2,  x: 48, y: 92 },
+    { level: 3,  x: 51, y: 88 },
+    { level: 4,  x: 45, y: 84 },
+    { level: 5,  x: 38, y: 81, milestone: true, name: 'Sunstone Rest' },
+    { level: 6,  x: 42, y: 77 },
+    { level: 7,  x: 46, y: 73 },
+    { level: 8,  x: 49, y: 69 },
+    { level: 9,  x: 47, y: 65 },
+    { level: 10, x: 42, y: 61, milestone: true, name: 'Hillside Spire' },
+    { level: 11, x: 38, y: 57, name: 'Windmill Croft' },
+    { level: 12, x: 44, y: 53 },
+    { level: 13, x: 51, y: 49 },
+    { level: 14, x: 57, y: 45 },
+    { level: 15, x: 61, y: 41, milestone: true, name: 'Waterfall Pass' },
+    { level: 16, x: 56, y: 36 },
+    { level: 17, x: 53, y: 31 },
+    { level: 18, x: 58, y: 26 },
+    { level: 19, x: 64, y: 21 },
+    { level: 20, x: 68, y: 16, isCastle: true, milestone: true, name: 'Sky Castle' }
   ];
 
-  // 2. Desert Realm (Levels 21-40)
+  // 2. Desert Realm (Levels 21-40) - Winding up the golden sands to the Great Pyramid Summit
   const DESERT_REALM_NODES = [
-    { level: 21, x: 50, y: 94, name: 'Oasis Base' },
-    { level: 22, x: 66, y: 89 },
-    { level: 23, x: 74, y: 84 },
-    { level: 24, x: 58, y: 79 },
-    { level: 25, x: 38, y: 75, milestone: true, name: 'Scarab Gate' },
-    { level: 26, x: 24, y: 70 },
-    { level: 27, x: 36, y: 65 },
-    { level: 28, x: 58, y: 61 },
-    { level: 29, x: 72, y: 56 },
-    { level: 30, x: 60, y: 51, milestone: true, name: 'Canyon Vault' },
-    { level: 31, x: 40, y: 47 },
-    { level: 32, x: 26, y: 42 },
-    { level: 33, x: 36, y: 37 },
-    { level: 34, x: 58, y: 32 },
-    { level: 35, x: 74, y: 28, milestone: true, name: 'Sun Obelisk' },
-    { level: 36, x: 62, y: 23 },
-    { level: 37, x: 42, y: 19 },
-    { level: 38, x: 28, y: 14 },
-    { level: 39, x: 46, y: 10 },
-    { level: 40, x: 56, y: 5, isCastle: true, milestone: true, name: 'Great Pyramid' }
+    { level: 21, x: 50, y: 93, name: 'Oasis Base' },
+    { level: 22, x: 42, y: 89 },
+    { level: 23, x: 36, y: 85 },
+    { level: 24, x: 44, y: 81 },
+    { level: 25, x: 54, y: 77, milestone: true, name: 'Dune Crest' },
+    { level: 26, x: 62, y: 73 },
+    { level: 27, x: 58, y: 69 },
+    { level: 28, x: 48, y: 65 },
+    { level: 29, x: 40, y: 61 },
+    { level: 30, x: 45, y: 57, milestone: true, name: 'Canyon Passage' },
+    { level: 31, x: 55, y: 53 },
+    { level: 32, x: 63, y: 49 },
+    { level: 33, x: 57, y: 45 },
+    { level: 34, x: 46, y: 41 },
+    { level: 35, x: 40, y: 37, milestone: true, name: 'Sun Obelisk' },
+    { level: 36, x: 48, y: 33 },
+    { level: 37, x: 56, y: 29 },
+    { level: 38, x: 52, y: 24 },
+    { level: 39, x: 44, y: 19 },
+    { level: 40, x: 50, y: 14, isCastle: true, milestone: true, name: 'Pyramid Summit' }
   ];
 
-  // 3. Frost Peaks (Levels 41-60)
+  // 3. Frost Peaks (Levels 41-60) - Glacial path leading up to Citadel Peak
   const FROST_PEAKS_NODES = [
-    { level: 41, x: 50, y: 94, name: 'Glacial Shore' },
-    { level: 42, x: 66, y: 89 },
-    { level: 43, x: 74, y: 84 },
-    { level: 44, x: 58, y: 79 },
-    { level: 45, x: 38, y: 75, milestone: true, name: 'Frost Sanctuary' },
-    { level: 46, x: 24, y: 70 },
-    { level: 47, x: 34, y: 65 },
-    { level: 48, x: 56, y: 61 },
-    { level: 49, x: 72, y: 56 },
-    { level: 50, x: 62, y: 51, milestone: true, name: 'Aurora Spire' },
-    { level: 51, x: 42, y: 47 },
-    { level: 52, x: 28, y: 42 },
-    { level: 53, x: 36, y: 37 },
-    { level: 54, x: 58, y: 32 },
-    { level: 55, x: 72, y: 28, milestone: true, name: 'Crystal Cavern' },
-    { level: 56, x: 60, y: 23 },
-    { level: 57, x: 40, y: 19 },
-    { level: 58, x: 26, y: 14 },
-    { level: 59, x: 46, y: 10 },
-    { level: 60, x: 56, y: 5, isCastle: true, milestone: true, name: 'Ice Palace' }
+    { level: 41, x: 52, y: 93, name: 'Frozen Lake' },
+    { level: 42, x: 44, y: 89 },
+    { level: 43, x: 38, y: 85 },
+    { level: 44, x: 46, y: 81 },
+    { level: 45, x: 56, y: 77, milestone: true, name: 'Ice Shard Arch' },
+    { level: 46, x: 63, y: 73 },
+    { level: 47, x: 57, y: 69 },
+    { level: 48, x: 47, y: 65 },
+    { level: 49, x: 41, y: 61 },
+    { level: 50, x: 48, y: 57, milestone: true, name: 'Crystal Cavern' },
+    { level: 51, x: 58, y: 53 },
+    { level: 52, x: 64, y: 49 },
+    { level: 53, x: 56, y: 45 },
+    { level: 54, x: 45, y: 41 },
+    { level: 55, x: 39, y: 37, milestone: true, name: 'Glacier Crevasse' },
+    { level: 56, x: 47, y: 33 },
+    { level: 57, x: 55, y: 29 },
+    { level: 58, x: 51, y: 24 },
+    { level: 59, x: 43, y: 19 },
+    { level: 60, x: 50, y: 14, isCastle: true, milestone: true, name: 'Citadel Peak' }
   ];
 
   const getNodesForRealm = () => {
@@ -230,14 +199,11 @@ export default function LevelSelectPage({ user }) {
   const currentNodes = getNodesForRealm();
   const currentRealmConfig = REALMS.find(r => r.id === activeRealm) || REALMS[0];
 
-  // Generate SVG curve path connecting all nodes
-  const roadPathD = buildSvgCurve(currentNodes, 800, 2000);
-
   // Auto-scroll to center player's current active level on mount & realm switch
   useEffect(() => {
     if (scrollContainerRef.current) {
       const activeNode = currentNodes.find(n => n.level === highestUnlocked);
-      const targetYPercent = activeNode ? activeNode.y : 88;
+      const targetYPercent = activeNode ? activeNode.y : 90;
 
       const timer = setTimeout(() => {
         if (scrollContainerRef.current) {
@@ -249,7 +215,7 @@ export default function LevelSelectPage({ user }) {
             behavior: 'smooth'
           });
         }
-      }, 180);
+      }, 150);
 
       return () => clearTimeout(timer);
     }
@@ -292,29 +258,21 @@ export default function LevelSelectPage({ user }) {
       <style>{`
         @keyframes pinBounce {
           0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-10px) scale(1.08); }
+          50% { transform: translateY(-8px) scale(1.06); }
         }
         @keyframes activeAuraPulse {
           0%, 100% {
-            box-shadow: 0 0 20px #f59e0b, 0 0 40px rgba(245, 158, 11, 0.75), inset 0 0 14px rgba(254, 240, 138, 0.9);
-            border-color: #fef08a;
-          }
-          50% {
-            box-shadow: 0 0 35px #fbbf24, 0 0 70px rgba(251, 191, 36, 0.95), inset 0 0 22px rgba(255, 255, 255, 1);
+            box-shadow: 0 0 16px #38bdf8, 0 0 32px rgba(56, 189, 248, 0.7), inset 0 0 8px rgba(255, 255, 255, 0.9);
             border-color: #ffffff;
           }
-        }
-        @keyframes energyDashAnim {
-          0% { stroke-dashoffset: 0; }
-          100% { stroke-dashoffset: -52; }
+          50% {
+            box-shadow: 0 0 28px #7dd3fc, 0 0 54px rgba(125, 211, 252, 0.9), inset 0 0 14px rgba(255, 255, 255, 1);
+            border-color: #bae6fd;
+          }
         }
         @keyframes chestGlow {
-          0%, 100% { filter: drop-shadow(0 2px 10px rgba(245, 158, 11, 0.8)); transform: scale(1); }
-          50% { filter: drop-shadow(0 4px 20px rgba(251, 191, 36, 1)); transform: scale(1.08); }
-        }
-        @keyframes playPillPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.6); }
-          50% { transform: scale(1.04); box-shadow: 0 8px 28px rgba(34, 197, 94, 0.9); }
+          0%, 100% { filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.6)); transform: scale(1); }
+          50% { filter: drop-shadow(0 4px 16px rgba(251, 191, 36, 0.95)); transform: scale(1.06); }
         }
         .roadmap-scroll::-webkit-scrollbar {
           width: 0px;
@@ -322,7 +280,7 @@ export default function LevelSelectPage({ user }) {
         }
       `}</style>
 
-      {/* Casual Mobile Viewport Frame */}
+      {/* Casual Mobile Viewport Frame (Exact Reference Proportions) */}
       <div style={{
         width: '100%',
         maxWidth: '480px',
@@ -336,7 +294,7 @@ export default function LevelSelectPage({ user }) {
       }}>
 
         {/* ========================================================
-            TOP BAR HEADER (Professional Game Status)
+            TOP BAR HEADER (100% Matching Reference Mockup)
             ======================================================== */}
         <div style={{
           position: 'absolute',
@@ -348,31 +306,32 @@ export default function LevelSelectPage({ user }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'linear-gradient(180deg, rgba(6, 18, 38, 0.95) 0%, rgba(6, 18, 38, 0.75) 75%, rgba(6, 18, 38, 0) 100%)',
+          background: 'linear-gradient(180deg, rgba(6, 18, 38, 0.94) 0%, rgba(6, 18, 38, 0.7) 75%, rgba(6, 18, 38, 0) 100%)',
           backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
           gap: '6px'
         }}>
 
-          {/* Player Profile Capsule with Level Badge & XP Bar */}
+          {/* 1. Player Profile Capsule with Mascot Avatar, Lv. 1 & XP Bar */}
           <div
             onClick={() => navigate('/dashboard')}
             title="View Player Profile"
             style={{
               display: 'flex',
               alignItems: 'center',
-              background: 'linear-gradient(180deg, #1e3a8a 0%, #172554 100%)',
+              background: 'linear-gradient(180deg, #172554 0%, #0f172a 100%)',
               border: '2px solid #38bdf8',
               borderRadius: '9999px',
               padding: '2px 8px 2px 2px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
               cursor: 'pointer',
               gap: '6px'
             }}
           >
-            {/* Cute Cat/Mascot Avatar Circle */}
+            {/* Mascot Avatar Circle */}
             <div style={{
-              width: '38px',
-              height: '38px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
               overflow: 'hidden',
               border: '2px solid #67e8f9',
@@ -393,7 +352,7 @@ export default function LevelSelectPage({ user }) {
                 color: '#ffffff',
                 fontSize: '0.82rem',
                 fontWeight: '900',
-                letterSpacing: '0.4px',
+                letterSpacing: '0.3px',
                 lineHeight: '1',
                 textShadow: '0 1px 2px rgba(0,0,0,0.6)'
               }}>
@@ -417,45 +376,46 @@ export default function LevelSelectPage({ user }) {
             </div>
           </div>
 
-          {/* Star Counter Pill */}
+          {/* 2. Star Counter Pill (0 / 60) */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '5px',
-            background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
-            border: '2px solid #0284c7',
-            padding: '0.32rem 0.65rem',
+            background: 'linear-gradient(180deg, #172554 0%, #0f172a 100%)',
+            border: '2px solid #38bdf8',
+            padding: '0.35rem 0.75rem',
             borderRadius: '9999px',
-            color: '#fef08a',
-            fontSize: '0.85rem',
+            color: '#ffffff',
+            fontSize: '0.86rem',
             fontWeight: '900',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.4)',
             letterSpacing: '0.3px'
           }}>
             <Star size={16} fill="#f59e0b" color="#fbbf24" />
-            <span>{totalStars} / {Math.max(15, currentNodes.length * 3)}</span>
+            <span>{totalStars} / 60</span>
           </div>
 
-          {/* Lives / Heart Counter Pill with '+' Button */}
+          {/* 3. Lives / Heart Counter Pill with '+' Button */}
           <div
             onClick={() => setShowHeartsModal(true)}
+            title="Refill Lives"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
-              border: '2px solid #0284c7',
-              padding: '0.25rem 0.35rem 0.25rem 0.65rem',
+              background: 'linear-gradient(180deg, #172554 0%, #0f172a 100%)',
+              border: '2px solid #38bdf8',
+              padding: '0.28rem 0.35rem 0.28rem 0.7rem',
               borderRadius: '9999px',
               color: '#ffffff',
-              fontSize: '0.82rem',
+              fontSize: '0.84rem',
               fontWeight: '900',
-              boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.4)',
               cursor: 'pointer'
             }}
           >
             <Heart size={15} fill="#ef4444" color="#f87171" />
-            <span style={{ fontSize: '0.78rem', fontWeight: '800' }}>5 Full</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: '800' }}>5 Full</span>
             <div style={{
               width: '19px',
               height: '19px',
@@ -471,7 +431,7 @@ export default function LevelSelectPage({ user }) {
             </div>
           </div>
 
-          {/* Settings / Gear Button */}
+          {/* 4. Settings / Gear Button */}
           <button
             onClick={() => {
               const next = !soundOn;
@@ -501,7 +461,7 @@ export default function LevelSelectPage({ user }) {
 
 
         {/* ========================================================
-            LEFT FLOATING WIDGETS
+            LEFT FLOATING WIDGETS (Matching Reference Mockup)
             ======================================================== */}
         <div style={{
           position: 'absolute',
@@ -513,13 +473,13 @@ export default function LevelSelectPage({ user }) {
           gap: '10px',
           pointerEvents: 'auto'
         }}>
-          {/* 1. Next Reward Chest Card */}
+          {/* 1. Next Reward Card */}
           <div
             onClick={() => setShowRewardModal(true)}
             style={{
-              width: '82px',
-              background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-              borderRadius: '12px',
+              width: '84px',
+              background: 'linear-gradient(180deg, rgba(20, 48, 100, 0.92) 0%, rgba(10, 24, 52, 0.94) 100%)',
+              borderRadius: '14px',
               border: '2px solid #38bdf8',
               boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
               padding: '6px 4px',
@@ -533,31 +493,31 @@ export default function LevelSelectPage({ user }) {
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
           >
             <span style={{
-              color: '#ffffff',
+              color: '#e0f2fe',
               fontSize: '0.62rem',
               fontWeight: '900',
               textTransform: 'uppercase',
               letterSpacing: '0.4px',
               textAlign: 'center',
-              marginBottom: '2px'
+              lineHeight: '1.1'
             }}>
-              Reward
+              NEXT<br />REWARD
             </span>
             <div style={{
-              fontSize: '28px',
+              fontSize: '26px',
               lineHeight: '1',
-              margin: '2px 0',
+              margin: '3px 0',
               animation: 'chestGlow 2.5s infinite'
             }}>
               🎁
             </div>
             <span style={{
               color: '#93c5fd',
-              fontSize: '0.58rem',
+              fontSize: '0.62rem',
               fontWeight: '800',
               textAlign: 'center'
             }}>
-              Lv. {nextMilestone}
+              Reach Level {nextMilestone}
             </span>
           </div>
 
@@ -565,9 +525,9 @@ export default function LevelSelectPage({ user }) {
           <div
             onClick={() => navigate('/daily')}
             style={{
-              width: '82px',
-              background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-              borderRadius: '12px',
+              width: '84px',
+              background: 'linear-gradient(180deg, rgba(20, 48, 100, 0.92) 0%, rgba(10, 24, 52, 0.94) 100%)',
+              borderRadius: '14px',
               border: '2px solid #38bdf8',
               boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
               padding: '6px 4px',
@@ -581,32 +541,49 @@ export default function LevelSelectPage({ user }) {
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
           >
+            {/* Red Notification Dot */}
             <div style={{
               position: 'absolute',
-              top: '-4px',
-              right: '-4px',
+              top: '-3px',
+              right: '-3px',
               width: '12px',
               height: '12px',
               borderRadius: '50%',
               background: '#ef4444',
-              border: '1.5px solid #ffffff'
+              border: '1.5px solid #ffffff',
+              boxShadow: '0 0 6px rgba(239, 68, 68, 0.8)'
             }} />
-            <Trophy size={24} color="#fbbf24" fill="#f59e0b" style={{ margin: '2px 0' }} />
+            <Trophy size={26} color="#fbbf24" fill="#f59e0b" style={{ margin: '2px 0' }} />
             <span style={{
               color: '#ffffff',
-              fontSize: '0.6rem',
+              fontSize: '0.66rem',
               fontWeight: '900',
               textAlign: 'center',
               lineHeight: '1.1'
             }}>
-              Daily Quest
+              Daily<br />Challenge
             </span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              marginTop: '3px'
+            }}>
+              <Clock size={11} color="#93c5fd" />
+              <span style={{
+                color: '#93c5fd',
+                fontSize: '0.6rem',
+                fontWeight: '800'
+              }}>
+                12h 30m
+              </span>
+            </div>
           </div>
         </div>
 
 
         {/* ========================================================
-            SCROLLABLE ROADMAP CONTAINER (Spacious 2000px Track)
+            SCROLLABLE ROADMAP CONTAINER (Natural 1376px Height)
             ======================================================== */}
         <div
           ref={scrollContainerRef}
@@ -620,119 +597,27 @@ export default function LevelSelectPage({ user }) {
             scrollBehavior: 'smooth'
           }}
         >
-          {/* Spacious 2000px Track: ~95px between levels for crystal-clear tap targets */}
+          {/* Natural 1376px Track matching 768x1376 Master Artwork */}
           <div style={{
             position: 'relative',
             width: '100%',
-            height: '2000px',
-            background: activeRealm === 1
-              ? '#031428'
-              : activeRealm === 2
-                ? '#3b1a06'
-                : '#020a1a',
+            height: '1376px',
+            backgroundImage: `url(${currentRealmConfig.bg})`,
+            backgroundSize: '100% 100%',
+            backgroundPosition: 'center top',
+            backgroundRepeat: 'no-repeat',
             overflow: 'hidden'
           }}>
 
-            {/* Realm Background Image with High-Depth Gradients */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: `url(${currentRealmConfig.thumb})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center top',
-              opacity: 0.85
-            }}>
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                background: activeRealm === 1
-                  ? 'linear-gradient(180deg, rgba(8, 29, 61, 0.45) 0%, rgba(2, 6, 23, 0.75) 100%)'
-                  : activeRealm === 2
-                    ? 'linear-gradient(180deg, rgba(78, 29, 6, 0.4) 0%, rgba(30, 10, 2, 0.8) 100%)'
-                    : 'linear-gradient(180deg, rgba(2, 40, 75, 0.45) 0%, rgba(2, 10, 25, 0.8) 100%)',
-                pointerEvents: 'none'
-              }} />
-            </div>
-
-            {/* Dynamic Smooth Winding Road SVG Weaving Through Every Level Center */}
-            <svg
-              viewBox="0 0 800 2000"
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <linearGradient id="roadBaseGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={currentRealmConfig.roadGrad[0]} stopOpacity="0.95" />
-                  <stop offset="100%" stopColor={currentRealmConfig.roadGrad[1]} stopOpacity="0.85" />
-                </linearGradient>
-
-                <filter id="roadGlowFilter" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="10" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-
-              {/* 1. Outer Wide Glowing Aura */}
-              <path
-                d={roadPathD}
-                fill="none"
-                stroke={currentRealmConfig.glowColor}
-                strokeWidth="68"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#roadGlowFilter)"
-              />
-
-              {/* 2. Dark Contrasting Road Bed Border */}
-              <path
-                d={roadPathD}
-                fill="none"
-                stroke="rgba(15, 23, 42, 0.85)"
-                strokeWidth="48"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* 3. Main Luminous Road Body */}
-              <path
-                d={roadPathD}
-                fill="none"
-                stroke="url(#roadBaseGrad)"
-                strokeWidth="36"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* 4. Center Animated Energy Pulse Line */}
-              <path
-                d={roadPathD}
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="4.5"
-                strokeDasharray="14 12"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{
-                  animation: 'energyDashAnim 2.8s linear infinite',
-                  filter: 'drop-shadow(0 0 6px #ffffff)'
-                }}
-              />
-            </svg>
-
-
             {/* ========================================================
-                ROADMAP LEVEL BUTTONS (56px-66px Touch Friendly)
+                ROADMAP LEVEL BUTTONS (100% Direct Path Placement)
                 ======================================================== */}
             {currentNodes.map(st => {
               const isUnlocked = unlockedSet.has(st.level) || st.level === 1 || st.level === 21 || st.level === 41;
               const isCurrent = st.level === highestUnlocked;
               const stars = userStars[st.level] || (isUnlocked && st.level < highestUnlocked ? 3 : 0);
 
-              const isDesert = activeRealm === 2;
-              const isFrost = activeRealm === 3;
-
-              // Large, prominent button dimensions
-              const btnSize = isCurrent ? 66 : st.milestone ? 60 : 56;
+              const btnSize = isCurrent ? 50 : st.isCastle ? 52 : st.milestone ? 46 : 42;
 
               return (
                 <div
@@ -748,7 +633,8 @@ export default function LevelSelectPage({ user }) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                    justifyContent: 'center',
+                    transition: 'transform 0.15s ease'
                   }}
                   onMouseEnter={e => {
                     if (isUnlocked) e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.12)';
@@ -758,26 +644,27 @@ export default function LevelSelectPage({ user }) {
                   }}
                 >
 
-                  {/* 1. HOVERING BOUNCING LOCATION PIN FOR CURRENT LEVEL */}
+                  {/* 1. HOVERING LOCATION PIN FOR CURRENT PLAYABLE LEVEL */}
                   {isCurrent && (
                     <div style={{
                       position: 'absolute',
-                      top: '-48px',
+                      top: '-44px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       animation: 'pinBounce 1.8s ease-in-out infinite',
-                      zIndex: 40
+                      zIndex: 40,
+                      pointerEvents: 'none'
                     }}>
                       <div style={{
-                        background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
+                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                         border: '2px solid #ffffff',
                         borderRadius: '9999px',
                         padding: '2px 8px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                         color: '#ffffff',
                         fontSize: '0.72rem',
                         fontWeight: '900',
@@ -792,25 +679,26 @@ export default function LevelSelectPage({ user }) {
                         height: 0,
                         borderLeft: '5px solid transparent',
                         borderRight: '5px solid transparent',
-                        borderTop: '6px solid #15803d',
+                        borderTop: '6px solid #0369a1',
                         marginTop: '-1px'
                       }} />
                     </div>
                   )}
 
-                  {/* 2. SUMMIT CROWN / CREST FOR MILESTONE LEVEL */}
-                  {st.milestone && !isCurrent && (
+                  {/* 2. GOLDEN ROYAL CROWN ABOVE CASTLE LEVEL 20 */}
+                  {st.isCastle && (
                     <div style={{
                       position: 'absolute',
-                      top: '-24px',
-                      fontSize: st.isCastle ? '24px' : '18px',
-                      filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))'
+                      top: '-22px',
+                      fontSize: '22px',
+                      filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.7))',
+                      pointerEvents: 'none'
                     }}>
-                      {st.isCastle ? (isDesert ? '🏛️' : isFrost ? '🏰' : '👑') : '⭐'}
+                      👑
                     </div>
                   )}
 
-                  {/* 3. STEPPING STONE PEDESTAL DISC */}
+                  {/* 3. STEPPING STONE PEDESTAL DISC (Matching Reference Mockup) */}
                   <div style={{
                     width: `${btnSize}px`,
                     height: `${btnSize}px`,
@@ -820,105 +708,71 @@ export default function LevelSelectPage({ user }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     background: isCurrent
-                      ? (isDesert
-                          ? 'linear-gradient(180deg, #fef08a 0%, #d97706 100%)'
-                          : isFrost
-                            ? 'linear-gradient(180deg, #e0f2fe 0%, #0284c7 100%)'
-                            : 'linear-gradient(180deg, #fde047 0%, #d97706 100%)')
+                      ? 'linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)'
                       : isUnlocked
-                        ? (isDesert
-                            ? 'linear-gradient(180deg, #d97706 0%, #78350f 100%)'
-                            : isFrost
-                              ? 'linear-gradient(180deg, #38bdf8 0%, #0369a1 100%)'
-                              : 'linear-gradient(180deg, #38bdf8 0%, #1e40af 100%)')
-                        : 'linear-gradient(180deg, #334155 0%, #0f172a 100%)',
+                        ? 'linear-gradient(180deg, #38bdf8 0%, #1e40af 100%)'
+                        : 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
                     border: isCurrent
-                      ? '3.5px solid #ffffff'
+                      ? '3px solid #ffffff'
                       : isUnlocked
-                        ? (st.milestone ? '3px solid #fbbf24' : '2.5px solid #93c5fd')
-                        : '2px solid #475569',
+                        ? (st.milestone ? '2.5px solid #fbbf24' : '2px solid #93c5fd')
+                        : '2px solid rgba(148, 163, 184, 0.4)',
                     boxShadow: isCurrent
-                      ? '0 0 24px #f59e0b, 0 8px 18px rgba(0,0,0,0.7)'
+                      ? '0 0 16px #38bdf8, 0 0 32px rgba(56, 189, 248, 0.7), 0 6px 14px rgba(0,0,0,0.6)'
                       : isUnlocked
-                        ? '0 6px 14px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.35)'
-                        : '0 4px 10px rgba(0,0,0,0.5)',
+                        ? '0 6px 14px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.4)'
+                        : '0 4px 10px rgba(0,0,0,0.55), inset 0 1px 2px rgba(255,255,255,0.12)',
                     animation: isCurrent ? 'activeAuraPulse 2s infinite' : 'none'
                   }}>
 
-                    {/* Inner Disc Fill */}
-                    <div style={{
-                      width: '82%',
-                      height: '82%',
-                      borderRadius: '50%',
-                      background: isCurrent
-                        ? (isDesert
-                            ? 'radial-gradient(circle at 35% 30%, #fbbf24 0%, #b45309 80%)'
-                            : isFrost
-                              ? 'radial-gradient(circle at 35% 30%, #a5f3fc 0%, #0284c7 80%)'
-                              : 'radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 80%)')
-                        : isUnlocked
-                          ? (isDesert
-                              ? 'radial-gradient(circle at 35% 30%, #f59e0b 0%, #78350f 80%)'
-                              : isFrost
-                                ? 'radial-gradient(circle at 35% 30%, #38bdf8 0%, #0369a1 80%)'
-                                : 'radial-gradient(circle at 35% 30%, #38bdf8 0%, #1e3a8a 80%)')
-                          : 'radial-gradient(circle at 35% 30%, #1e293b 0%, #090d16 100%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)'
-                    }}>
-
-                      {/* Locked Padlock Icon */}
-                      {!isUnlocked ? (
-                        <div style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '1px'
-                        }}>
-                          <Lock size={16} color="#cbd5e1" strokeWidth={2.6} />
-                          <span style={{
-                            color: '#94a3b8',
-                            fontSize: '0.74rem',
-                            fontWeight: '900',
-                            lineHeight: '1'
-                          }}>
-                            {st.level}
-                          </span>
-                        </div>
-                      ) : (
-                        /* Large, Bold Level Number */
+                    {/* Disc Content: Locked Padlock or Unlocked Bold Level Number */}
+                    {isUnlocked ? (
+                      <span style={{
+                        color: '#ffffff',
+                        fontSize: isCurrent ? '1.25rem' : '1.15rem',
+                        fontWeight: '900',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.85)',
+                        lineHeight: '1',
+                        letterSpacing: '-0.3px'
+                      }}>
+                        {st.level}
+                      </span>
+                    ) : (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '1px'
+                      }}>
+                        <Lock size={13} color="#cbd5e1" strokeWidth={2.4} />
                         <span style={{
-                          color: '#ffffff',
-                          fontSize: isCurrent ? '1.35rem' : '1.18rem',
+                          color: '#94a3b8',
+                          fontSize: '0.74rem',
                           fontWeight: '900',
-                          textShadow: '0 2px 4px rgba(0,0,0,0.85)',
-                          lineHeight: '1',
-                          letterSpacing: '-0.4px'
+                          lineHeight: '1'
                         }}>
                           {st.level}
                         </span>
-                      )}
-
-                    </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* 4. THREE GOLDEN STARS UNDERNEATH (13px, Crisp & Glowing) */}
-                  {isUnlocked && (
+                  {/* 4. THREE GOLDEN STARS UNDERNEATH (When Completed) */}
+                  {isUnlocked && st.level < highestUnlocked && (
                     <div style={{
                       display: 'flex',
-                      gap: '3px',
-                      marginTop: '4px',
-                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.9))'
+                      alignItems: 'center',
+                      gap: '2px',
+                      marginTop: '3px',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))'
                     }}>
                       {[1, 2, 3].map(starNum => {
-                        const earned = stars >= starNum;
+                        const earned = starNum <= stars;
                         return (
                           <Star
                             key={starNum}
-                            size={13}
+                            size={12}
                             fill={earned ? '#f59e0b' : '#334155'}
                             color={earned ? '#fef08a' : '#1e293b'}
                             strokeWidth={1.5}
@@ -937,65 +791,25 @@ export default function LevelSelectPage({ user }) {
 
 
         {/* ========================================================
-            QUICK PLAY FLOATING ACTION PILL
+            BOTTOM REALM SELECTOR DOCK (100% Matching Reference)
             ======================================================== */}
         <div style={{
           position: 'absolute',
-          bottom: '76px',
-          left: 0,
-          right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          zIndex: 42,
-          pointerEvents: 'none'
-        }}>
-          <button
-            onClick={() => handleSelectLevel(highestUnlocked, true)}
-            style={{
-              pointerEvents: 'auto',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: '2px solid #86efac',
-              padding: '0.55rem 1.4rem',
-              borderRadius: '9999px',
-              color: '#ffffff',
-              fontSize: '0.92rem',
-              fontWeight: '900',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              animation: 'playPillPulse 2.4s infinite',
-              letterSpacing: '0.4px',
-              textShadow: '0 1px 2px rgba(0,0,0,0.6)'
-            }}
-          >
-            <Play size={16} fill="#ffffff" color="#ffffff" />
-            <span>PLAY LEVEL {highestUnlocked}</span>
-          </button>
-        </div>
-
-
-        {/* ========================================================
-            BOTTOM REALM SELECTOR DOCK
-            ======================================================== */}
-        <div style={{
-          position: 'absolute',
-          bottom: '10px',
+          bottom: '12px',
           left: '10px',
           right: '10px',
           zIndex: 45,
-          background: 'rgba(6, 18, 38, 0.94)',
+          background: 'rgba(6, 18, 38, 0.92)',
           backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderRadius: '24px',
           border: '2px solid rgba(2, 132, 199, 0.45)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
           padding: '6px 8px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           gap: '6px'
         }}>
-
           {/* Left Navigation Arrow Button */}
           <button
             onClick={handlePrevRealm}
@@ -1045,11 +859,12 @@ export default function LevelSelectPage({ user }) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    cursor: 'pointer',
                     gap: '2px',
+                    cursor: 'pointer',
                     transition: 'all 0.2s ease'
                   }}
                 >
+                  {/* Miniature 3D Realm Island Thumbnail */}
                   <div style={{
                     width: '38px',
                     height: '26px',
@@ -1065,6 +880,8 @@ export default function LevelSelectPage({ user }) {
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   </div>
+
+                  {/* Realm Name & Level Range */}
                   <span style={{
                     color: isActive ? '#ffffff' : '#cbd5e1',
                     fontSize: '0.68rem',
@@ -1119,6 +936,7 @@ export default function LevelSelectPage({ user }) {
             zIndex: 60,
             background: 'rgba(2, 6, 23, 0.85)',
             backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1165,7 +983,7 @@ export default function LevelSelectPage({ user }) {
                 gap: '12px',
                 width: '100%',
                 justifyContent: 'center',
-                marginBottom: '16px'
+                marginBottom: '20px'
               }}>
                 <div style={{
                   background: 'rgba(15, 23, 42, 0.8)',
@@ -1224,6 +1042,7 @@ export default function LevelSelectPage({ user }) {
             zIndex: 60,
             background: 'rgba(2, 6, 23, 0.85)',
             backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1279,7 +1098,7 @@ export default function LevelSelectPage({ user }) {
                   cursor: 'pointer'
                 }}
               >
-                Let’s Play!
+                Let's Play!
               </button>
             </div>
           </div>
